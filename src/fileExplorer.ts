@@ -15,23 +15,22 @@ export class MyFileSystemProvider implements vscode.TreeDataProvider<vscode.Tree
     constructor(input_device: string) {
         this.files = [];
 		this.input_device = input_device;
+		const term = vscode.window.createTerminal();
+		// term.sendText(`mpremote connect ${input_device} fs ls > $env:temp/mprem_ls.log`);
+		term.sendText(`mkdir $env:temp/mprem & ls > $env:temp/mprem/mprem_ls_root.log`);
     }
 
 	parseLsLog(prefix = './') {
 		if(this.input_device === "") {
-			return;
+			return [""];
 		}
-		const term = vscode.window.createTerminal();
-		// term.sendText(`mpremote connect ${input_device} fs ls > $env:temp/mprem_ls.log`);
-		term.sendText(`mkdir $env:temp/mprem & ls ${prefix} > $env:temp/mprem/mprem_ls_root.log`);
 		const tempPath = path.join(process.env.TEMP || '/tmp', 'mprem/mprem_ls_root.log');
 		const logContentRAW = fs.readFileSync(tempPath, 'utf8');
 		const logContent = logContentRAW.replace(/\r\n {50}/gm, "");
 		const lines = logContent.split(/\n/).slice(5); // Split the content by new line characters and discard the first 5 lines
 		// Check if the line represents a directory and append a slash accordingly
 		let tmpfiles = lines.map(line => line.startsWith('d----') ? `${line}/` : line);
-		this.files = tmpfiles.map(line => line.replace(/.{50}/g, '')); // Replace matches with an empty string
-		this.files.map(line =>console.log(line));
+		return tmpfiles.map(line => line.replace(/.{50}/g, '')); // Replace matches with an empty string
 	}
 
     getTreeItem(element: vscode.TreeItem): vscode.TreeItem {
@@ -44,13 +43,13 @@ export class MyFileSystemProvider implements vscode.TreeDataProvider<vscode.Tree
         }
 
 		console.log(element.label);
-		const ls_string = this.parseLsLog(element.label?.toString());
+		const ls_string = this.parseLsLog(String(element.label).trim());
         return Promise.resolve(this.buildTreeItems(this.files));
     }
 
 	update(device: string) {
 		this.input_device = device;
-		this.parseLsLog();
+		this.files = this.parseLsLog();
 		this._onDidChangeTreeData.fire(undefined);
 	}
 
@@ -80,3 +79,20 @@ export class FileExplorer {
 		vscode.window.showTextDocument(resource);
 	}
 }
+
+class Node<T> {
+	data: T;
+	parent: Node<T> | null;
+	children: Node<T>[] = [];
+  
+	constructor(data: T, parent: Node<T> | null = null) {
+	  this.data = data;
+	  this.parent = parent;
+	}
+  
+	addChild(data: T): Node<T> {
+	  const childNode = new Node(data, this);
+	  this.children.push(childNode);
+	  return childNode;
+	}
+  }
