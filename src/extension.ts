@@ -37,27 +37,7 @@ export function activate(context: vscode.ExtensionContext) {
     let device = vscode.commands.registerCommand('mprem.device', () => {
         getUserInput();
 	});
-    let explorer =vscode.commands.registerCommand('mprem.explorer', () => {
-        // Create and show a new webview
-        const panel = vscode.window.createWebviewPanel(
-            'fileExplorer', // Identifies the type of the webview. Used internally
-            'File Explorer', // Title of the panel displayed to the user
-            vscode.ViewColumn.One, // Editor column to show the new webview panel in
-            {}
-        );
 
-        // Read the files in the current directory using 'ls' command
-        const currentFolder = vscode.workspace.rootPath || __dirname;
-        const files = fs.readdirSync(currentFolder);
-
-        // Create an HTML string with the file list
-        const fileListHTML = generateFileListHTML(files, currentFolder);
-
-        // Set the HTML content of the webview
-        panel.webview.html = fileListHTML;
-    });
-
-	context.subscriptions.push(explorer);
 	context.subscriptions.push(clear);
 	context.subscriptions.push(pull);
 	context.subscriptions.push(pullsub);
@@ -69,14 +49,6 @@ export function activate(context: vscode.ExtensionContext) {
 
 // This method is called when your extension is deactivated
 export function deactivate() {}
-
-function generateFileListHTML(files: string[], currentFolder: string) {
-    const listItems = files.map((file) => `<li>${file}</li>`).join('');
-    return `
-        <h2>Files in ${path.basename(currentFolder)}</h2>
-        <ul>${listItems}</ul>
-    `;
-}
 
 function runCommandInMPremTerminal(command: string) {
     if (!input_device) {
