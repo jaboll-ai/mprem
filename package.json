@@ -1,0 +1,69 @@
+{
+  "name": "mprem",
+  "displayName": "mprem",
+  "description": "A mpremote wrapper",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.84.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "mprem.explorer",
+        "title": "mprem Explorer: Open explorer"
+      },
+      {
+        "command": "mprem.clear",
+        "title": "mprem Clear: Cleares all files from device and write to local"
+      },
+      {
+        "command": "mprem.pull",
+        "title": "mprem Pull: Pull all the files from device and write to local"
+      },
+      {
+        "command": "mprem.pullsub",
+        "title": "mprem Pull to subfolder: Pull all the files from device and write to local subfolder"
+      },
+      {
+        "command": "mprem.pullnclear",
+        "title": "mprem Pull & Clear: Pull all the files from device to local and clear device"
+      },
+      {
+        "command": "mprem.run",
+        "title": "mprem Run: Copy current file to device and execute it"
+      },
+      {
+        "command": "mprem.safe",
+        "title": "mprem Safe: Safe current file to device"
+      },
+      {
+        "command": "mprem.device",
+        "title": "mprem Device: Specify which device to use (e.g. COM5)"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src --ext ts",
+    "test": "vscode-test"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.84.0",
+    "@types/mocha": "^10.0.6",
+    "@types/node": "18.x",
+    "@typescript-eslint/eslint-plugin": "^6.13.1",
+    "@typescript-eslint/parser": "^6.13.1",
+    "eslint": "^8.54.0",
+    "typescript": "^5.3.2",
+    "@vscode/test-cli": "^0.0.4",
+    "@vscode/test-electron": "^2.3.8"
+  }
+}
