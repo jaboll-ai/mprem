@@ -3,8 +3,11 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
+import { FileExplorer } from './fileExplorer';
+import { MyFileSystemProvider } from './fileExplorer';
 
 var input_device = "";
+const filesymprov = new MyFileSystemProvider(input_device);
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
@@ -38,6 +41,8 @@ export function activate(context: vscode.ExtensionContext) {
     let device = vscode.commands.registerCommand('mprem.device', () => {
         getUserInput();
 	});
+    
+    new FileExplorer(context, input_device, filesymprov);
 
 	context.subscriptions.push(clear);
 	context.subscriptions.push(pull);
@@ -78,6 +83,7 @@ async function getUserInput() {
     if (userInput !== undefined) {
         vscode.window.showInformationMessage(`Device set to: ${userInput}`);
         input_device = userInput;
+        filesymprov.update(userInput);
     } else {
         vscode.window.showErrorMessage('Not a valid device.');
     }
