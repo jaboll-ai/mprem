@@ -14,10 +14,6 @@
   "contributes": {
     "commands": [
       {
-        "command": "mprem.explorer",
-        "title": "mprem Explorer: Open explorer"
-      },
-      {
         "command": "mprem.clear",
         "title": "mprem Clear: Cleares all files from device and write to local"
       },
@@ -45,7 +41,25 @@
         "command": "mprem.device",
         "title": "mprem Device: Specify which device to use (e.g. COM5)"
       }
-    ]
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "mprem",
+          "title": "mprem",
+          "icon": "resources/chip.svg"
+        }
+      ]
+    },
+    "views": {
+      "mprem": [
+        {
+          "id": "device",
+          "contents": "Moin\n[Open Folder](command:vscode.openFolder)\n",
+          "name": "Devices"
+        }
+      ]
+    }
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
