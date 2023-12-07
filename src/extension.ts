@@ -20,19 +20,20 @@ export function activate(context: vscode.ExtensionContext) {
         deleteConfirmation();
 	});
     let pull = vscode.commands.registerCommand('mprem.pull', () => {
-        runCommandInMPremTerminal(`echo develop`);
+        runCommandInMPremTerminal(`mpremote connect ${input_device} cp -r :./* .`);
 	});
     let pullsub = vscode.commands.registerCommand('mprem.pullsub', () => {
-        runCommandInMPremTerminal(`echo develop`);
+        runCommandInMPremTerminal(`mpremote connect ${input_device} cp -r :. .`);
 	});
     let pullnclear = vscode.commands.registerCommand('mprem.pullnclear', () => {
-        runCommandInMPremTerminal(`echo develop`);
+        runCommandInMPremTerminal(`mpremote connect ${input_device} cp -r :./* .`);
+        runCommandInMPremTerminal(`mpremote connect ${input_device} rm -r :./*`);
 	});
     let run = vscode.commands.registerCommand('mprem.run', () => {
-        runCommandInMPremTerminal(`echo develop`);
+        runCommandInMPremTerminal(`mpremote connect ${input_device} run`);
 	});
     let safe = vscode.commands.registerCommand('mprem.safe', () => {
-        runCommandInMPremTerminal(`echo develop`);
+        runCommandInMPremTerminal(`mpremote connect ${input_device}`);
 	});
     let device = vscode.commands.registerCommand('mprem.device', () => {
         getUserInput();
@@ -91,7 +92,7 @@ async function deleteConfirmation() {
     );
 
     if (userResponse === 'Yes') {
-        runCommandInMPremTerminal(`echo develop`);
+        runCommandInMPremTerminal(`mpremote connect ${input_device} rm -r :./*`);
     } else {
         vscode.window.showInformationMessage('Deletion canceled.');
     }
