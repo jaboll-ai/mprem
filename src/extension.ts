@@ -26,14 +26,26 @@ export function activate(context: vscode.ExtensionContext) {
         runCommandInMPremTerminal(`mpremote connect ${input_device} cp -r :. .`);
 	});
     let pullnclear = vscode.commands.registerCommand('mprem.pullnclear', () => {
-        runCommandInMPremTerminal(`mpremote connect ${input_device} cp -r :./* .`);
-        runCommandInMPremTerminal(`mpremote connect ${input_device} rm -r :./*`);
+        runCommandInMPremTerminal(`mpremote connect ${input_device} cp -r :./* . && 
+                                   mpremote connect ${input_device} rm -r :./*`);
 	});
     let run = vscode.commands.registerCommand('mprem.run', () => {
-        runCommandInMPremTerminal(`mpremote connect ${input_device} run`);
+        const activeFilePath = getActiveFilePath();
+        const activeFileName = getActiveFilePath(true);
+        if (activeFilePath) {
+            runCommandInMPremTerminal(`mpremote connect ${input_device} cp ${activeFilePath} :. &&
+                                       mpremote connect ${input_device} run :${activeFileName}`);
+        } else {
+            vscode.window.showErrorMessage('No active file.');
+        }
 	});
     let safe = vscode.commands.registerCommand('mprem.safe', () => {
-        runCommandInMPremTerminal(`mpremote connect ${input_device}`);
+        const activeFilePath = getActiveFilePath();
+        if (activeFilePath) {
+            runCommandInMPremTerminal(`mpremote connect ${input_device} cp ${activeFilePath} :.`);
+        } else {
+            vscode.window.showErrorMessage('No active file.');
+        }
 	});
     let device = vscode.commands.registerCommand('mprem.device', () => {
         getUserInput();
@@ -97,3 +109,14 @@ async function deleteConfirmation() {
         vscode.window.showInformationMessage('Deletion canceled.');
     }
 }
+
+function getActiveFilePath(only_name = false): string | undefined {
+    const activeEditor = vscode.window.activeTextEditor;
+    if (activeEditor){
+        const f_path = activeEditor.document.uri.fsPath;
+        if (only_name) {
+            return path.basename(f_path);
+        }
+        return f_path;
+    }
+  }
