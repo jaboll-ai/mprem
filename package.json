@@ -1,6 +1,11 @@
 {
   "name": "mprem",
-  "displayName": "mprem",
+  "displayName": "MPrem",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/YolloPlays/mprem.git"
+  },
+  "publisher": "jaboll",
   "description": "A mpremote wrapper",
   "version": "0.0.1",
   "engines": {
@@ -62,7 +67,7 @@
       "views": {
       "mprem": [
         {
-        "id": "device",
+        "id": "device_list",
         "name": "Devices"
         }
       ]
