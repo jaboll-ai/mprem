@@ -11,6 +11,7 @@
 Works like a charm with ESP-32-WroOM
 
 It can show you all the connected ports and devices
+
 ![Show device list](resources/devices.png)
 
 It runs active files on the micro-controller, syncs data back and forth, 
