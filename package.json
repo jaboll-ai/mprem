@@ -14,36 +14,36 @@
   "contributes": {
     "commands": [
       {
-        "command": "mprem.explorer",
-        "title": "mprem Explorer: Open explorer"
-      },
-      {
         "command": "mprem.clear",
         "title": "mprem Clear: Cleares all files from device and write to local"
       },
       {
-        "command": "mprem.pull",
-        "title": "mprem Pull: Pull all the files from device and write to local"
+        "command": "mprem.sync",
+        "title": "mprem Sync: Sync all the files to/from device"
       },
       {
-        "command": "mprem.pullsub",
-        "title": "mprem Pull to subfolder: Pull all the files from device and write to local subfolder"
-      },
-      {
-        "command": "mprem.pullnclear",
-        "title": "mprem Pull & Clear: Pull all the files from device to local and clear device"
+        "command": "mprem.syncnclear",
+        "title": "mprem Sync & Clear: Sync all the files from device to local and clear device"
       },
       {
         "command": "mprem.run",
         "title": "mprem Run: Copy current file to device and execute it"
       },
       {
-        "command": "mprem.safe",
-        "title": "mprem Safe: Safe current file to device"
+        "command": "mprem.save",
+        "title": "mprem Save: Save current file to device"
       },
       {
         "command": "mprem.device",
         "title": "mprem Device: Specify which device to use (e.g. COM5)"
+      },
+      {
+        "command": "mprem.mount",
+        "title": "mprem Mount: Mounts local files to device as (as /remote)"
+      },
+      {
+        "command": "mprem.soft_reset",
+        "title": "mprem Soft-Reset: Soft-Reset device"
       }
     ]
   },
