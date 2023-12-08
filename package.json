@@ -6,6 +6,7 @@
     "url": "https://github.com/YolloPlays/mprem.git"
   },
   "publisher": "jaboll",
+  "icon": "resources/mprem_logo.png",
   "description": "A mpremote wrapper",
   "version": "0.0.1",
   "engines": {
