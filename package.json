@@ -44,6 +44,10 @@
       {
         "command": "mprem.soft_reset",
         "title": "mprem Soft-Reset: Soft-Reset device"
+      },
+      {
+        "command": "mprem.hard_reset",
+        "title": "mprem Hard-Reset: Reset device"
       }
     ]
   },

@@ -62,6 +62,9 @@ export function activate(context: vscode.ExtensionContext) {
     let soft_reset = vscode.commands.registerCommand('mprem.soft_reset', () => {
         runCommandInMPremTerminal(`mpremote connect ${input_device} soft-reset`);
 	});
+    let hard_reset = vscode.commands.registerCommand('mprem.hard_reset', () => {
+        runCommandInMPremTerminal(`mpremote connect ${input_device} reset`);
+	});
 
 	context.subscriptions.push(clear);
 	context.subscriptions.push(sync);
@@ -71,6 +74,7 @@ export function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(device);
     context.subscriptions.push(mount);
     context.subscriptions.push(soft_reset);
+    context.subscriptions.push(hard_reset);
 }
 
 // This method is called when your extension is deactivated
