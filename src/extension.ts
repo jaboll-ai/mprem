@@ -213,3 +213,20 @@ function getActiveFilePath(only_name = false): string | undefined {
         }
     });
   }
+
+class MpremProvider implements vscode.TreeDataProvider<MpremProvider> {
+    getTreeItem(element: MpremProvider): vscode.TreeItem | Thenable<vscode.TreeItem> {
+        throw new Error('Method not implemented.');
+    }
+    getChildren(element?: MpremProvider | undefined): vscode.ProviderResult<MpremProvider[]> {
+        throw new Error('Method not implemented.');
+    }
+    getParent?(element: MpremProvider): vscode.ProviderResult<MpremProvider> {
+        throw new Error('Method not implemented.');
+    }
+    resolveTreeItem?(item: vscode.TreeItem, element: MpremProvider, token: vscode.CancellationToken): vscode.ProviderResult<vscode.TreeItem> {
+        throw new Error('Method not implemented.');
+    }
+    private _onDidChangeTreeData: vscode.EventEmitter<MpremFile | undefined> = new vscode.EventEmitter<MpremFile | undefined>();
+    readonly onDidChangeTreeData: vscode.Event<MpremFile | undefined> = this._onDidChangeTreeData.event;
+}

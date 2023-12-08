@@ -64,10 +64,6 @@
         {
         "id": "device",
         "name": "Devices"
-        },
-        {
-        "id": "fileExplorer",
-        "name": "File Explorer"
         }
       ]
       }
