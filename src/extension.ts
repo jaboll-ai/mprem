@@ -152,9 +152,9 @@ function getActiveFilePath(only_name = false): string | undefined {
         return f_path;
     }
   }
-  function log_files(){
-        const my_path = path.resolve(os.tmpdir(), '.mprem_log');
-        runinDisposeTerm(`mpremote connect ${input_device} ls > ${my_path}`);
+  function log_files(log_name = ".mprem_log"){
+        const temp_path = path.resolve(os.tmpdir(), log_name);
+        runinDisposeTerm(`mpremote connect ${input_device} ls > ${temp_path}`);
   }
   async function runinDisposeTerm(command: string){
         const newTerminal = vscode.window.createTerminal();
@@ -214,19 +214,28 @@ function getActiveFilePath(only_name = false): string | undefined {
     });
   }
 
-class MpremProvider implements vscode.TreeDataProvider<MpremProvider> {
-    getTreeItem(element: MpremProvider): vscode.TreeItem | Thenable<vscode.TreeItem> {
-        throw new Error('Method not implemented.');
-    }
-    getChildren(element?: MpremProvider | undefined): vscode.ProviderResult<MpremProvider[]> {
-        throw new Error('Method not implemented.');
-    }
-    getParent?(element: MpremProvider): vscode.ProviderResult<MpremProvider> {
-        throw new Error('Method not implemented.');
-    }
-    resolveTreeItem?(item: vscode.TreeItem, element: MpremProvider, token: vscode.CancellationToken): vscode.ProviderResult<vscode.TreeItem> {
-        throw new Error('Method not implemented.');
-    }
-    private _onDidChangeTreeData: vscode.EventEmitter<MpremFile | undefined> = new vscode.EventEmitter<MpremFile | undefined>();
-    readonly onDidChangeTreeData: vscode.Event<MpremFile | undefined> = this._onDidChangeTreeData.event;
-}
+// class MpremProvider implements vscode.TreeDataProvider<vscode.TreeItem> {
+//     private files: string[];
+// 	private input_device: string;
+
+//     constructor(input_device: string) {
+//         this.files = [];
+// 		this.input_device = input_device;
+//     }
+
+//     getTreeItem(element: vscode.TreeItem): vscode.TreeItem | Thenable<vscode.TreeItem> {
+//         return element;
+//     }
+//     getChildren(element?: vscode.TreeItem | undefined): vscode.ProviderResult<vscode.TreeItem[]> {
+//         throw new Error('Method not implemented.');
+//     }
+//     getParent?(element: vscode.TreeItem): vscode.ProviderResult<vscode.TreeItem> {
+//         throw new Error('Method not implemented.');
+//     }
+//     resolveTreeItem?(item: vscode.TreeItem, element: vscode.TreeItem, token: vscode.CancellationToken): vscode.ProviderResult<vscode.TreeItem> {
+//         throw new Error('Method not implemented.');
+//     }
+
+//     private _onDidChangeTreeData: vscode.EventEmitter<vscode.TreeItem | undefined> = new vscode.EventEmitter<vscode.TreeItem | undefined>();
+//     readonly onDidChangeTreeData: vscode.Event<vscode.TreeItem | undefined> = this._onDidChangeTreeData.event;
+// }
