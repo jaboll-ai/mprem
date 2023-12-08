@@ -41,28 +41,7 @@
         "command": "mprem.device",
         "title": "mprem Device: Specify which device to use (e.g. COM5)"
       }
-    ],
-    "viewsContainers": {
-      "activitybar": [
-        {
-          "id": "mprem",
-          "title": "mprem",
-          "icon": "resources/chip.svg"
-        }
-      ]
-    },
-    "views": {
-      "mprem": [
-        {
-          "id": "device",
-          "name": "Devices"
-        },
-        {
-          "id": "fileExplorer",
-          "name": "File Explorer"
-        }
-      ]
-    }
+    ]
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",

@@ -42,7 +42,7 @@ export function activate(context: vscode.ExtensionContext) {
         getUserInput();
 	});
     
-    new FileExplorer(context, input_device, filesymprov);
+    // new FileExplorer(context, input_device, filesymprov);
 
 	context.subscriptions.push(clear);
 	context.subscriptions.push(pull);
