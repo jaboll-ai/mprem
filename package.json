@@ -40,10 +40,6 @@
         "title": "mprem Save: Save current file to device"
       },
       {
-        "command": "mprem.device",
-        "title": "mprem Device: Specify which device to use (e.g. COM5)"
-      },
-      {
         "command": "mprem.mount",
         "title": "mprem Mount: Mounts local files to device as (as /remote)"
       },

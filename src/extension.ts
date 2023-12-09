@@ -51,10 +51,6 @@ export function activate(context: vscode.ExtensionContext) {
             vscode.window.showErrorMessage('No active file.');
         }
 	});
-    let device = vscode.commands.registerCommand('mprem.device', () => {
-        // getUserInput();
-        device_list.treeView.reveal(device_list.treeView.selection[0]);
-	});
     let mount = vscode.commands.registerCommand('mprem.mount', () => {
         runinDisposeTerm("mkdir ./remote 2>NUL");
         runCommandInMPremTerminal(`cd ./remote`);
@@ -73,7 +69,7 @@ export function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(syncnclear);
 	context.subscriptions.push(run);
 	context.subscriptions.push(save);
-	context.subscriptions.push(device);
+	// context.subscriptions.push(device);
     context.subscriptions.push(mount);
     context.subscriptions.push(soft_reset);
     context.subscriptions.push(hard_reset);
@@ -101,23 +97,6 @@ function runCommandInMPremTerminal(command: string) {
     }
 }
 
-// async function getUserInput() {
-//     const device_list = parseDeviceLog();
-//     const userInput = await vscode.window.showQuickPick(device_list).then((selectedItem) => {
-//         if (selectedItem) {
-//         return selectedItem.replace(/(?<=\w) .+/g, "").trim();
-//         }
-//       });
-
-//     if (userInput !== undefined) {
-//         vscode.window.showInformationMessage(`Device set to: ${userInput}`);
-//         input_device = userInput;
-//         log_files();
-//     } else {
-//         vscode.window.showErrorMessage('Not a valid device.');
-//     }
-// }
-
 async function deleteConfirmation(supress=false) {
     if (!input_device) {
         await vscode.window.showErrorMessage('No device set. Please set a device first. (mprem Device)');
@@ -138,7 +117,7 @@ async function deleteConfirmation(supress=false) {
         const file_lst = parseFileLog();
         file_lst.forEach(file => {
             if(file !== "boot.py"){
-                runCommandInMPremTerminal(`mpremote connect ${input_device} rm ${file} >NUL 2>&1`);
+                runCommandInMPremTerminal(`mpremote connect ${input_device} rm ${file.trim()} >NUL 2>&1`);
                 runCommandInMPremTerminal(`mpremote connect ${input_device} ls`);
             }
         });
