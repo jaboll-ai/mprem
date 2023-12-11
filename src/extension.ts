@@ -39,7 +39,7 @@ export function activate(context: vscode.ExtensionContext) {
         const activeFilePath = getActiveFilePath();
         // const activeFileName = getActiveFilePath(true);
         if (activeFilePath) {
-            runCommandInMPremTerminal(`mpremote connect ${input_device} run ${activeFilePath} --no-follow`);
+            runCommandInMPremTerminal(`mpremote connect ${input_device} run ${activeFilePath}`);
         } else {
             vscode.window.showErrorMessage('No active file.');
         }

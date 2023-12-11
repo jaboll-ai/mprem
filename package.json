@@ -8,7 +8,7 @@
   "publisher": "jaboll",
   "icon": "resources/mprem_logo.png",
   "description": "A mpremote wrapper",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "engines": {
     "vscode": "^1.84.0"
   },
@@ -33,7 +33,7 @@
       },
       {
         "command": "mprem.run",
-        "title": "mprem Run: Copy current file to device and execute it"
+        "title": "mprem Run: Run current file in RAM"
       },
       {
         "command": "mprem.save",
