@@ -50,6 +50,11 @@
       {
         "command": "mprem.hard_reset",
         "title": "mprem Hard-Reset: Reset device"
+      },
+      {
+        "command": "device_list.refreshEntry",
+        "title": "Refresh",
+        "icon": "resources/refresh.svg"
       }
     ],
     "viewsContainers": {
@@ -62,13 +67,22 @@
       ]
       },
       "views": {
-      "mprem": [
-        {
-        "id": "device_list",
-        "name": "Devices"
-        }
-      ]
-      }
+        "mprem": [
+          {
+          "id": "device_list",
+          "name": "Devices"
+          }
+        ]
+      },
+      "menus": {
+        "view/title": [
+            {
+                "command": "device_list.refreshEntry",
+                "when": "view == device_list",
+                "group": "navigation"
+            }
+        ]
+    }
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",

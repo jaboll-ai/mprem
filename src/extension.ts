@@ -10,21 +10,18 @@ var input_device = "";
 // Your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
 
-	// Use the console to output diagnostic information (console.log) and errors (console.error)
-	// This line of code will only be executed once when your extension is activated
-	console.log('Congratulations, your extension "mprem" is now active!');
-    log_devices();
-    runCommandInMPremTerminal(`rm ${path.resolve(os.tmpdir(), ".mprem_log")}`);
-
-	// The command has been defined in the package.json file
-	// Now provide the implementation of the command with registerCommand
-	// The commandId parameter must match the command field in package.json
+    // Use the console to output diagnostic information (console.log) and errors (console.error)
+    // This line of code will only be executed once when your extension is activated
+    console.log('Congratulations, your extension "mprem" is now active!');
+    // The command has been defined in the package.json file
+    // Now provide the implementation of the command with registerCommand
+    // The commandId parameter must match the command field in package.json
     let clear = vscode.commands.registerCommand('mprem.clear', () => {
         deleteConfirmation();
-	});
+    });
     let sync = vscode.commands.registerCommand('mprem.sync', () => {
         sync_device();
-	});
+    });
     let syncnclear = vscode.commands.registerCommand('mprem.syncnclear', () => {
         const files = parseFileLog();
         runCommandInMPremTerminal("mkdir ./mprem_files > NUL");
@@ -34,7 +31,7 @@ export function activate(context: vscode.ExtensionContext) {
         });
         runCommandInMPremTerminal(`cd ..`);
         deleteConfirmation(true);
-	});
+    });
     let run = vscode.commands.registerCommand('mprem.run', () => {
         const activeFilePath = getActiveFilePath();
         // const activeFileName = getActiveFilePath(true);
@@ -43,7 +40,7 @@ export function activate(context: vscode.ExtensionContext) {
         } else {
             vscode.window.showErrorMessage('No active file.');
         }
-	});
+    });
     let save = vscode.commands.registerCommand('mprem.save', () => {
         const activeFilePath = getActiveFilePath();
         if (activeFilePath) {
@@ -51,26 +48,25 @@ export function activate(context: vscode.ExtensionContext) {
         } else {
             vscode.window.showErrorMessage('No active file.');
         }
-	});
+    });
     let mount = vscode.commands.registerCommand('mprem.mount', () => {
         runCommandInMPremTerminal("mkdir ./remote 2>NUL");
         runCommandInMPremTerminal(`cd ./remote`);
         runCommandInMPremTerminal(`mpremote connect ${input_device} mount ./`);
         runCommandInMPremTerminal(`cd ..`);
-	});
+    });
     let soft_reset = vscode.commands.registerCommand('mprem.soft_reset', () => {
         runCommandInMPremTerminal(`mpremote connect ${input_device} soft-reset`);
-	});
+    });
     let hard_reset = vscode.commands.registerCommand('mprem.hard_reset', () => {
         runCommandInMPremTerminal(`mpremote connect ${input_device} reset`);
-	});
+    });
 
-	context.subscriptions.push(clear);
-	context.subscriptions.push(sync);
-	context.subscriptions.push(syncnclear);
-	context.subscriptions.push(run);
-	context.subscriptions.push(save);
-	// context.subscriptions.push(device);
+    context.subscriptions.push(clear);
+    context.subscriptions.push(sync);
+    context.subscriptions.push(syncnclear);
+    context.subscriptions.push(run);
+    context.subscriptions.push(save);
     context.subscriptions.push(mount);
     context.subscriptions.push(soft_reset);
     context.subscriptions.push(hard_reset);
@@ -78,11 +74,12 @@ export function activate(context: vscode.ExtensionContext) {
 }
 
 // This method is called when your extension is deactivated
-export function deactivate() {}
+export function deactivate() { }
 
 function runCommandInMPremTerminal(command: string) {
     if (!input_device) {
-        vscode.window.showErrorMessage('No device set. Please set a device first. (mprem Device)');
+        vscode.commands.executeCommand("device_list.focus");
+        vscode.window.showErrorMessage('No device set. Please set a device first.');
         return;
     }
     // Find the terminal with the specified name
@@ -98,27 +95,28 @@ function runCommandInMPremTerminal(command: string) {
     }
 }
 
-async function deleteConfirmation(supress=false) {
+async function deleteConfirmation(supress = false) {
     log_files();
     if (!input_device) {
-        await vscode.window.showErrorMessage('No device set. Please set a device first. (mprem Device)');
+        vscode.commands.executeCommand("device_list.focus");
+        vscode.window.showErrorMessage('No device set. Please set a device first.');
         return;
-    }    
+    }
     if (!supress) {
         var userResponse = await vscode.window.showWarningMessage(
             'Do you really wish to delete everything on the device?',
             { modal: true },
             'Yes',
             'No'
-        );    
+        );
     } else {
         userResponse = "Yes";
     }
-    
+
     if (userResponse === 'Yes') {
         const file_lst = parseFileLog();
         file_lst.forEach(file => {
-            if(file !== "boot.py"){
+            if (file !== "boot.py") {
                 runCommandInMPremTerminal(`mpremote connect ${input_device} rm ${file.trim()} >NUL 2>&1`);
                 runCommandInMPremTerminal(`mpremote connect ${input_device} ls`);
             }
@@ -130,74 +128,77 @@ async function deleteConfirmation(supress=false) {
 
 function getActiveFilePath(only_name = false): string | undefined {
     const activeEditor = vscode.window.activeTextEditor;
-    if (activeEditor){
+    if (activeEditor) {
         const f_path = activeEditor.document.uri.fsPath;
         if (only_name) {
             return path.basename(f_path);
         }
         return f_path;
     }
-  }
-  function log_files(){
-        const temp_path = path.resolve(os.tmpdir(), ".mprem_log");
-        runCommandInMPremTerminal(`mpremote connect ${input_device} ls > ${temp_path}`);
-  }
-  function log_devices(){
+}
+function log_files() {
+    const temp_path = path.resolve(os.tmpdir(), ".mprem_log");
+    runCommandInMPremTerminal(`mpremote connect ${input_device} ls > ${temp_path}`);
+}
+function log_devices() {
     const temp_path = path.resolve(os.tmpdir(), ".mprem_devices_log");
-    runCommandInMPremTerminal(`mpremote connect list >${temp_path}`);
-  }
-  async function runindisposeterm(command: string){
-        const newTerminal = vscode.window.createTerminal();
-        newTerminal.sendText(command);
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        newTerminal.dispose();
-  }
-  
-  
-  function parseFileLog(): string[] {
+    runindisposeterm(`mpremote connect list >${temp_path}`);
+    while (!fs.existsSync(temp_path)) { }
+}
+async function runindisposeterm(command: string) {
+    const newTerminal = vscode.window.createTerminal({
+        name: 'Background Task',
+        hideFromUser: true,
+    });
+    newTerminal.sendText(command);
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    newTerminal.dispose();
+}
+
+
+function parseFileLog(): string[] {
     log_files();
     const my_path = path.resolve(os.tmpdir(), '.mprem_log');
     console.log("Waiting for .mprem_log to be created...");
-    while(!fs.existsSync(my_path)) {}
+    while (!fs.existsSync(my_path)) { }
     console.log(".mprem_log created...");
     const logContentRaw = fs.readFileSync(my_path, 'utf-8');
 
     const tmp1 = logContentRaw.replace(/^.{13}/gm, '');
     const tmpList = tmp1.split('\n');
-    console.log(tmpList.slice(0, -2));
+    runindisposeterm(`rm ${path.resolve(os.tmpdir(), ".mprem_log")}`);
     return tmpList.slice(0, -2);
-  }
+}
 
-  function parseDeviceLog(): string[] {
+function parseDeviceLog(): string[] {
+    log_devices();
     const my_path = path.resolve(os.tmpdir(), '.mprem_devices_log');
-    while(!fs.existsSync(my_path)) {
-        console.log("Waiting for .mprem_devices_log to be created...");
-    }
-    while(fs.readFileSync(my_path, 'utf-8')===""){
-        console.log("Waiting for .mprem_devices_log to be populated...");
-    }
+    console.log("Waiting for .mprem_devices_log to be created...");
+    while (!fs.existsSync(my_path)) {}
+    console.log("Finished.\nWaiting for .mprem_devices_log to be populated...");
+    while (fs.readFileSync(my_path, 'utf-8') === "") {}
+    console.log("Finished.\nEverything is ready.");
     const logContentRaw = fs.readFileSync(my_path, 'utf-8').trim();
-    console.log(logContentRaw);
-    console.log(logContentRaw.split("\n"));
+    runindisposeterm(`rm ${path.resolve(os.tmpdir(), ".mprem_devices_log")}`);
     return logContentRaw.split("\n");
-  }
+}
 
-  function sync_device() {
+function sync_device() {
     if (!input_device) {
-        vscode.window.showErrorMessage('No device set. Please set a device first. (mprem Device)');
+        vscode.commands.executeCommand("device_list.focus");
+        vscode.window.showErrorMessage('No device set. Please set a device first.');
         return;
     }
     const options: vscode.QuickPickItem[] = [
         { label: 'From', description: '"From" device to local' },
         { label: 'To', description: 'From local "To" device' },
-      ];
-  
-      // Show the quick pick menu
-      vscode.window.showQuickPick(options).then((selectedOption) => {
-        console.log(selectedOption);
+    ];
+
+    // Show the quick pick menu
+    vscode.window.showQuickPick(options).then((selectedOption) => {
         if (selectedOption) {
-          // Handle the selected option
-            if(selectedOption.label === "From"){
+            // Handle the selected option
+            if (selectedOption.label === "From") {
                 const files = parseFileLog();
                 runCommandInMPremTerminal("mkdir ./mprem_files 2>NUL");
                 runCommandInMPremTerminal(`cd ./mprem_files`);
@@ -206,7 +207,7 @@ function getActiveFilePath(only_name = false): string | undefined {
                 });
                 runCommandInMPremTerminal(`cd ..`);
                 runCommandInMPremTerminal(`mpremote connect ${input_device} ls`);
-            } else if(selectedOption.label === "To"){
+            } else if (selectedOption.label === "To") {
                 runCommandInMPremTerminal("mkdir ./mprem_files 2>NUL");
                 runCommandInMPremTerminal(`cd ./mprem_files`);
                 deleteConfirmation(true);
@@ -216,7 +217,7 @@ function getActiveFilePath(only_name = false): string | undefined {
             }
         }
     });
-  }
+}
 
 class MpremProvider implements vscode.TreeDataProvider<vscode.TreeItem> {
     private devices: string[];
@@ -230,7 +231,7 @@ class MpremProvider implements vscode.TreeDataProvider<vscode.TreeItem> {
     }
     getChildren(element?: vscode.TreeItem | undefined): vscode.ProviderResult<vscode.TreeItem[]> {
         if (!element) {
-            return Promise.resolve(this.buildTreeItems(this.devices));
+            return Promise.resolve(this.buildTreeItems());
         }
         return Promise.resolve([]);
     }
@@ -238,14 +239,19 @@ class MpremProvider implements vscode.TreeDataProvider<vscode.TreeItem> {
         return undefined;
     }
 
-    private buildTreeItems(devices: string[]): vscode.TreeItem[] {
+    private buildTreeItems(): vscode.TreeItem[] {
         const devices_list = parseDeviceLog();
-        return devices_list.map(device => 
+        return devices_list.map(device =>
             new MpremDeviceItem(device, device.replace(/(?<=\w) .+/g, "").trim())
         );
     }
-    private _onDidChangeTreeData: vscode.EventEmitter<vscode.TreeItem | undefined> = new vscode.EventEmitter<vscode.TreeItem | undefined>();
-    readonly onDidChangeTreeData: vscode.Event<vscode.TreeItem | undefined> = this._onDidChangeTreeData.event;
+    private _onDidChangeTreeData: vscode.EventEmitter<vscode.TreeItem | undefined | null | void> = new vscode.EventEmitter<vscode.TreeItem | undefined | null | void>();
+    readonly onDidChangeTreeData: vscode.Event<vscode.TreeItem | undefined | null | void> = this._onDidChangeTreeData.event;
+
+    refresh(): void {
+        log_devices();
+        this._onDidChangeTreeData.fire();
+    }
 }
 
 class MpremDeviceItem extends vscode.TreeItem {
@@ -255,12 +261,6 @@ class MpremDeviceItem extends vscode.TreeItem {
         this.port = port;
     }
 
-    command = {
-        command: 'mprem.select_device',
-        title: 'Select Device',
-        arguments: [this],
-    };
-
     getPort(): string {
         return this.port;
     }
@@ -268,11 +268,19 @@ class MpremDeviceItem extends vscode.TreeItem {
 
 class MpremDevices {
     public treeView: vscode.TreeView<vscode.TreeItem>;
-	constructor(context: vscode.ExtensionContext, treeDataProvider: MpremProvider) {
+    constructor(context: vscode.ExtensionContext, treeDataProvider: MpremProvider) {
         this.treeView = vscode.window.createTreeView('device_list', { treeDataProvider });
-		context.subscriptions.push(this.treeView);
-		vscode.commands.registerCommand('mprem.select_device', (device: MpremDeviceItem) => this.select_device(device));
-	}
+        const treedispose = vscode.window.registerTreeDataProvider('device_list', treeDataProvider);
+        let select_device = vscode.commands.registerCommand('mprem.select_device', (device: MpremDeviceItem) => this.select_device(device));
+        let refresh = vscode.commands.registerCommand('device_list.refreshEntry', () =>
+            treeDataProvider.refresh()
+        );
+
+        context.subscriptions.push(this.treeView);
+        context.subscriptions.push(treedispose);
+        context.subscriptions.push(select_device);
+        context.subscriptions.push(refresh);
+    }
 
     select_device(device: MpremDeviceItem) {
         const devicePort = device.getPort();
