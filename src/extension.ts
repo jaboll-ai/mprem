@@ -14,6 +14,7 @@ export function activate(context: vscode.ExtensionContext) {
 	// This line of code will only be executed once when your extension is activated
 	console.log('Congratulations, your extension "mprem" is now active!');
     log_devices();
+    runCommandInMPremTerminal(`rm ${path.resolve(os.tmpdir(), ".mprem_log")}`);
 
 	// The command has been defined in the package.json file
 	// Now provide the implementation of the command with registerCommand
@@ -26,19 +27,19 @@ export function activate(context: vscode.ExtensionContext) {
 	});
     let syncnclear = vscode.commands.registerCommand('mprem.syncnclear', () => {
         const files = parseFileLog();
-        runinDisposeTerm("mkdir ./mprem_files > NUL");
+        runCommandInMPremTerminal("mkdir ./mprem_files > NUL");
         runCommandInMPremTerminal(`cd ./mprem_files`);
         files.forEach(file => {
             runCommandInMPremTerminal(`mpremote connect ${input_device} cp :${file.trim()} ./${file.trim()}`);
         });
         runCommandInMPremTerminal(`cd ..`);
-        deleteConfirmation();
+        deleteConfirmation(true);
 	});
     let run = vscode.commands.registerCommand('mprem.run', () => {
         const activeFilePath = getActiveFilePath();
-        const activeFileName = getActiveFilePath(true);
+        // const activeFileName = getActiveFilePath(true);
         if (activeFilePath) {
-            runCommandInMPremTerminal(`mpremote connect ${input_device} cp ${activeFilePath} :. && mpremote connect ${input_device} run ${activeFileName} --no-follow`);
+            runCommandInMPremTerminal(`mpremote connect ${input_device} run ${activeFilePath} --no-follow`);
         } else {
             vscode.window.showErrorMessage('No active file.');
         }
@@ -52,7 +53,7 @@ export function activate(context: vscode.ExtensionContext) {
         }
 	});
     let mount = vscode.commands.registerCommand('mprem.mount', () => {
-        runinDisposeTerm("mkdir ./remote 2>NUL");
+        runCommandInMPremTerminal("mkdir ./remote 2>NUL");
         runCommandInMPremTerminal(`cd ./remote`);
         runCommandInMPremTerminal(`mpremote connect ${input_device} mount ./`);
         runCommandInMPremTerminal(`cd ..`);
@@ -98,6 +99,7 @@ function runCommandInMPremTerminal(command: string) {
 }
 
 async function deleteConfirmation(supress=false) {
+    log_files();
     if (!input_device) {
         await vscode.window.showErrorMessage('No device set. Please set a device first. (mprem Device)');
         return;
@@ -138,13 +140,13 @@ function getActiveFilePath(only_name = false): string | undefined {
   }
   function log_files(){
         const temp_path = path.resolve(os.tmpdir(), ".mprem_log");
-        runinDisposeTerm(`mpremote connect ${input_device} ls > ${temp_path}`);
+        runCommandInMPremTerminal(`mpremote connect ${input_device} ls > ${temp_path}`);
   }
   function log_devices(){
     const temp_path = path.resolve(os.tmpdir(), ".mprem_devices_log");
-    runinDisposeTerm(`mpremote connect list >${temp_path}`);
+    runCommandInMPremTerminal(`mpremote connect list >${temp_path}`);
   }
-  async function runinDisposeTerm(command: string){
+  async function runindisposeterm(command: string){
         const newTerminal = vscode.window.createTerminal();
         newTerminal.sendText(command);
         await new Promise(resolve => setTimeout(resolve, 2000));
@@ -153,16 +155,16 @@ function getActiveFilePath(only_name = false): string | undefined {
   
   
   function parseFileLog(): string[] {
+    log_files();
     const my_path = path.resolve(os.tmpdir(), '.mprem_log');
-    while(!fs.existsSync(my_path)) {
-        console.log("Waiting for .mprem_log to be created...");
-    }
+    console.log("Waiting for .mprem_log to be created...");
+    while(!fs.existsSync(my_path)) {}
+    console.log(".mprem_log created...");
     const logContentRaw = fs.readFileSync(my_path, 'utf-8');
 
-    const tmp1 = logContentRaw.replace(/.{13}/g, '');
+    const tmp1 = logContentRaw.replace(/^.{13}/gm, '');
     const tmpList = tmp1.split('\n');
-
-    // Remove the last two elements from the array (equivalent to [:-2] in Python)
+    console.log(tmpList.slice(0, -2));
     return tmpList.slice(0, -2);
   }
 
@@ -197,7 +199,7 @@ function getActiveFilePath(only_name = false): string | undefined {
           // Handle the selected option
             if(selectedOption.label === "From"){
                 const files = parseFileLog();
-                runinDisposeTerm("mkdir ./mprem_files 2>NUL");
+                runCommandInMPremTerminal("mkdir ./mprem_files 2>NUL");
                 runCommandInMPremTerminal(`cd ./mprem_files`);
                 files.forEach(file => {
                     runCommandInMPremTerminal(`mpremote connect ${input_device} cp :${file.trim()} ./${file.trim()} >NUL 2>&1`);
@@ -205,7 +207,7 @@ function getActiveFilePath(only_name = false): string | undefined {
                 runCommandInMPremTerminal(`cd ..`);
                 runCommandInMPremTerminal(`mpremote connect ${input_device} ls`);
             } else if(selectedOption.label === "To"){
-                runinDisposeTerm("mkdir ./mprem_files 2>NUL");
+                runCommandInMPremTerminal("mkdir ./mprem_files 2>NUL");
                 runCommandInMPremTerminal(`cd ./mprem_files`);
                 deleteConfirmation(true);
                 runCommandInMPremTerminal(`mpremote connect ${input_device} cp -r . : >NUL 2>&1`);
