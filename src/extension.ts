@@ -38,7 +38,7 @@ export function activate(context: vscode.ExtensionContext) {
         const activeFilePath = getActiveFilePath();
         // const activeFileName = getActiveFilePath(true);
         if (activeFilePath) {
-            runCommandInMPremTerminal(`mpremote connect ${input_device} run ${activeFilePath}`);
+            runCommandInMPremTerminal(`mpremote connect ${input_device} run \"${activeFilePath}\"`);
         } else {
             vscode.window.showErrorMessage('No active file.');
         }
@@ -46,7 +46,7 @@ export function activate(context: vscode.ExtensionContext) {
     let save = vscode.commands.registerCommand('mprem.save', () => {
         const activeFilePath = getActiveFilePath();
         if (activeFilePath) {
-            runCommandInMPremTerminal(`mpremote connect ${input_device} cp ${activeFilePath} :.`);
+            runCommandInMPremTerminal(`mpremote connect ${input_device} cp \"${activeFilePath}\" :.`);
         } else {
             vscode.window.showErrorMessage('No active file.');
         }
@@ -140,11 +140,11 @@ function getActiveFilePath(only_name = false): string | undefined {
 }
 function log_files() {
     const temp_path = path.resolve(os.tmpdir(), ".mprem_log");
-    runCommandInMPremTerminal(`mpremote connect ${input_device} ls > ${temp_path}`);
+    runCommandInMPremTerminal(`mpremote connect ${input_device} ls > \"${temp_path}\"`);
 }
 function log_devices() {
     const temp_path = path.resolve(os.tmpdir(), ".mprem_devices_log");
-    runindisposeterm(`mpremote connect list >${temp_path}`);
+    runindisposeterm(`mpremote connect list >\"${temp_path}\"`);
     while (!fs.existsSync(temp_path)) { }
 }
 async function runindisposeterm(command: string) {
@@ -167,7 +167,7 @@ function parseFileLog(): string[] {
     const logContentRaw = detectFileEncodingandRead(my_path);
         const tmp1 = logContentRaw.replace(/^.{13}/gm, '');
     const tmpList = tmp1.split('\n');
-    runindisposeterm(`rm ${path.resolve(os.tmpdir(), ".mprem_log")}`);
+    runindisposeterm(`rm \"${my_path}\"`);
     return tmpList.slice(0, -2);
 }
 
@@ -189,7 +189,7 @@ function parseDeviceLog(): string[] {
     while (fs.readFileSync(my_path, 'utf-8') === "") {}
     console.log("Finished.\nEverything is ready.");
     const logContentRaw = detectFileEncodingandRead(my_path);
-    runindisposeterm(`rm ${path.resolve(os.tmpdir(), ".mprem_devices_log")}`);
+    runindisposeterm(`rm \"${my_path}\"`);
     return logContentRaw.split("\n");
 }
 
