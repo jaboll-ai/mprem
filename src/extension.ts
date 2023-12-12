@@ -163,11 +163,13 @@ function parseFileLog(): string[] {
     const my_path = path.resolve(os.tmpdir(), '.mprem_log');
     console.log("Waiting for .mprem_log to be created...");
     while (!fs.existsSync(my_path)) {}
-    console.log(".mprem_log created...");
+    console.log("Finished.\nWaiting for .mprem_log to be populated...");
+    while (fs.readFileSync(my_path, 'utf-8') === "") {}
     const logContentRaw = detectFileEncodingandRead(my_path);
-        const tmp1 = logContentRaw.replace(/^.{13}/gm, '');
-    const tmpList = tmp1.split('\n');
+    const tmp1 = logContentRaw.replace(/^.{13}/gm, '');
+    const tmpList = tmp1.split('\r\n');
     runindisposeterm(`rm \"${my_path}\"`);
+    console.log("Log deleted");
     return tmpList.slice(0, -2);
 }
 
@@ -190,7 +192,8 @@ function parseDeviceLog(): string[] {
     console.log("Finished.\nEverything is ready.");
     const logContentRaw = detectFileEncodingandRead(my_path);
     runindisposeterm(`rm \"${my_path}\"`);
-    return logContentRaw.split("\n");
+    console.log("Log deleted");
+    return logContentRaw.split("\r\n");
 }
 
 function sync_device() {
