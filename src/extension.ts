@@ -261,6 +261,12 @@ class MpremDeviceItem extends vscode.TreeItem {
         this.port = port;
     }
 
+    command = {
+        command: 'mprem.select_device',
+        title: 'Select Device',
+        arguments: [this],
+    };
+
     getPort(): string {
         return this.port;
     }
