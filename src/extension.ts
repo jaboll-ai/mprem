@@ -4,6 +4,8 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as os from 'os';
+import * as jschardet from 'jschardet';
+import * as iconv from 'iconv-lite';
 
 var input_device = "";
 // This method is called when your extension is activated
@@ -160,14 +162,21 @@ function parseFileLog(): string[] {
     log_files();
     const my_path = path.resolve(os.tmpdir(), '.mprem_log');
     console.log("Waiting for .mprem_log to be created...");
-    while (!fs.existsSync(my_path)) { }
+    while (!fs.existsSync(my_path)) {}
     console.log(".mprem_log created...");
-    const logContentRaw = fs.readFileSync(my_path, 'utf-8');
-
+    const logContentRaw = detectFileEncodingandRead(my_path);
     const tmp1 = logContentRaw.replace(/^.{13}/gm, '');
     const tmpList = tmp1.split('\n');
     runindisposeterm(`rm ${path.resolve(os.tmpdir(), ".mprem_log")}`);
     return tmpList.slice(0, -2);
+}
+
+function detectFileEncodingandRead(filePath: string): string {
+    const buffer = fs.readFileSync(filePath);
+    const result = jschardet.detect(buffer);
+    const encoding = result.encoding.toLowerCase();
+    const content = iconv.decode(buffer, encoding);
+    return content.trim();
 }
 
 function parseDeviceLog(): string[] {
@@ -178,7 +187,7 @@ function parseDeviceLog(): string[] {
     console.log("Finished.\nWaiting for .mprem_devices_log to be populated...");
     while (fs.readFileSync(my_path, 'utf-8') === "") {}
     console.log("Finished.\nEverything is ready.");
-    const logContentRaw = fs.readFileSync(my_path, 'utf-8').trim();
+    const logContentRaw = detectFileEncodingandRead(my_path);
     runindisposeterm(`rm ${path.resolve(os.tmpdir(), ".mprem_devices_log")}`);
     return logContentRaw.split("\n");
 }

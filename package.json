@@ -8,7 +8,7 @@
   "publisher": "jaboll",
   "icon": "resources/mprem_logo.png",
   "description": "A mpremote wrapper",
-  "version": "0.0.8",
+  "version": "0.0.9",
   "engines": {
     "vscode": "^1.84.0"
   },
@@ -60,28 +60,28 @@
     "viewsContainers": {
       "activitybar": [
         {
-        "id": "mprem",
-        "title": "mprem",
-        "icon": "resources/chip.svg"
+          "id": "mprem",
+          "title": "mprem",
+          "icon": "resources/chip.svg"
         }
       ]
-      },
-      "views": {
-        "mprem": [
-          {
+    },
+    "views": {
+      "mprem": [
+        {
           "id": "device_list",
           "name": "Devices"
-          }
-        ]
-      },
-      "menus": {
-        "view/title": [
-            {
-                "command": "device_list.refreshEntry",
-                "when": "view == device_list",
-                "group": "navigation"
-            }
-        ]
+        }
+      ]
+    },
+    "menus": {
+      "view/title": [
+        {
+          "command": "device_list.refreshEntry",
+          "when": "view == device_list",
+          "group": "navigation"
+        }
+      ]
     }
   },
   "scripts": {
@@ -93,14 +93,18 @@
     "test": "vscode-test"
   },
   "devDependencies": {
-    "@types/vscode": "^1.84.0",
     "@types/mocha": "^10.0.6",
     "@types/node": "18.x",
+    "@types/vscode": "^1.84.0",
     "@typescript-eslint/eslint-plugin": "^6.13.1",
     "@typescript-eslint/parser": "^6.13.1",
-    "eslint": "^8.54.0",
-    "typescript": "^5.3.2",
     "@vscode/test-cli": "^0.0.4",
-    "@vscode/test-electron": "^2.3.8"
+    "@vscode/test-electron": "^2.3.8",
+    "eslint": "^8.54.0",
+    "typescript": "^5.3.2"
+  },
+  "dependencies": {
+    "iconv-lite": "^0.6.3",
+    "jschardet": "^3.0.0"
   }
 }
