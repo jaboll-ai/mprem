@@ -165,7 +165,7 @@ function parseFileLog(): string[] {
     while (!fs.existsSync(my_path)) {}
     console.log(".mprem_log created...");
     const logContentRaw = detectFileEncodingandRead(my_path);
-    const tmp1 = logContentRaw.replace(/^.{13}/gm, '');
+        const tmp1 = logContentRaw.replace(/^.{13}/gm, '');
     const tmpList = tmp1.split('\n');
     runindisposeterm(`rm ${path.resolve(os.tmpdir(), ".mprem_log")}`);
     return tmpList.slice(0, -2);
@@ -174,9 +174,10 @@ function parseFileLog(): string[] {
 function detectFileEncodingandRead(filePath: string): string {
     const buffer = fs.readFileSync(filePath);
     const result = jschardet.detect(buffer);
+    while(!result.encoding) {}
     const encoding = result.encoding.toLowerCase();
     const content = iconv.decode(buffer, encoding);
-    return content.trim();
+    return content;
 }
 
 function parseDeviceLog(): string[] {
@@ -209,13 +210,13 @@ function sync_device() {
             // Handle the selected option
             if (selectedOption.label === "From") {
                 const files = parseFileLog();
-                runCommandInMPremTerminal("mkdir ./mprem_files 2>NUL");
+                runindisposeterm("mkdir ./mprem_files 2>NUL");
                 runCommandInMPremTerminal(`cd ./mprem_files`);
                 files.forEach(file => {
                     runCommandInMPremTerminal(`mpremote connect ${input_device} cp :${file.trim()} ./${file.trim()} >NUL 2>&1`);
                 });
                 runCommandInMPremTerminal(`cd ..`);
-                runCommandInMPremTerminal(`mpremote connect ${input_device} ls`);
+                // runCommandInMPremTerminal(`mpremote connect ${input_device} ls`);
             } else if (selectedOption.label === "To") {
                 runCommandInMPremTerminal("mkdir ./mprem_files 2>NUL");
                 runCommandInMPremTerminal(`cd ./mprem_files`);
