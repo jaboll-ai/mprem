@@ -157,6 +157,14 @@ async function runindisposeterm(command: string) {
     newTerminal.dispose();
 }
 
+function detectFileEncodingandRead(filePath: string): string {
+    const buffer = fs.readFileSync(filePath);
+    const result = jschardet.detect(buffer);
+    while(!result.encoding) {}
+    const encoding = result.encoding.toLowerCase();
+    const content = iconv.decode(buffer, encoding);
+    return content;
+}
 
 function parseFileLog(): string[] {
     log_files();
@@ -173,15 +181,6 @@ function parseFileLog(): string[] {
     return tmpList.slice(0, -2);
 }
 
-function detectFileEncodingandRead(filePath: string): string {
-    const buffer = fs.readFileSync(filePath);
-    const result = jschardet.detect(buffer);
-    while(!result.encoding) {}
-    const encoding = result.encoding.toLowerCase();
-    const content = iconv.decode(buffer, encoding);
-    return content;
-}
-
 function parseDeviceLog(): string[] {
     log_devices();
     const my_path = path.resolve(os.tmpdir(), '.mprem_devices_log');
@@ -190,7 +189,7 @@ function parseDeviceLog(): string[] {
     console.log("Finished.\nWaiting for .mprem_devices_log to be populated...");
     while (fs.readFileSync(my_path, 'utf-8') === "") {}
     console.log("Finished.\nEverything is ready.");
-    const logContentRaw = detectFileEncodingandRead(my_path);
+    const logContentRaw = detectFileEncodingandRead(my_path).trim(); //Remove trim() for empty button
     runindisposeterm(`rm \"${my_path}\"`);
     console.log("Log deleted");
     return logContentRaw.split("\r\n");
