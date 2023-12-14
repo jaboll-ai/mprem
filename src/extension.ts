@@ -26,7 +26,7 @@ export function activate(context: vscode.ExtensionContext) {
     });
     let syncnclear = vscode.commands.registerCommand('mprem.syncnclear', () => {
         const files = parseFileLog();
-        runCommandInMPremTerminal("mkdir ./mprem_files > NUL");
+        runCommandInMPremTerminal("mkdir ./mprem_files");
         runCommandInMPremTerminal(`cd ./mprem_files`);
         files.forEach(file => {
             runCommandInMPremTerminal(`mpremote connect ${input_device} cp :${file.trim()} ./${file.trim()}`);
@@ -52,7 +52,7 @@ export function activate(context: vscode.ExtensionContext) {
         }
     });
     let mount = vscode.commands.registerCommand('mprem.mount', () => {
-        runCommandInMPremTerminal("mkdir ./remote 2>NUL");
+        runCommandInMPremTerminal("mkdir ./remote");
         runCommandInMPremTerminal(`cd ./remote`);
         runCommandInMPremTerminal(`mpremote connect ${input_device} mount ./`);
         runCommandInMPremTerminal(`cd ..`);
@@ -119,8 +119,8 @@ async function deleteConfirmation(supress = false) {
         const file_lst = parseFileLog();
         file_lst.forEach(file => {
             if (file !== "boot.py") {
-                runCommandInMPremTerminal(`mpremote connect ${input_device} rm ${file.trim()} >NUL 2>&1`);
-                runCommandInMPremTerminal(`mpremote connect ${input_device} ls`);
+                runCommandInMPremTerminal(`mpremote connect ${input_device} rm ${file.trim()}`);
+                // runCommandInMPremTerminal(`mpremote connect ${input_device} ls`);
             }
         });
     } else {
@@ -141,11 +141,12 @@ function getActiveFilePath(only_name = false): string | undefined {
 function log_files() {
     const temp_path = path.resolve(os.tmpdir(), ".mprem_log");
     runCommandInMPremTerminal(`mpremote connect ${input_device} ls > \"${temp_path}\"`);
+    while (!fs.readFileSync(temp_path, "utf-8")) {}
 }
 function log_devices() {
     const temp_path = path.resolve(os.tmpdir(), ".mprem_devices_log");
     runindisposeterm(`mpremote connect list >\"${temp_path}\"`);
-    while (!fs.existsSync(temp_path)) { }
+    while (!fs.existsSync(temp_path)) {}
 }
 async function runindisposeterm(command: string) {
     const newTerminal = vscode.window.createTerminal({
@@ -212,18 +213,18 @@ function sync_device() {
             // Handle the selected option
             if (selectedOption.label === "From") {
                 const files = parseFileLog();
-                runindisposeterm("mkdir ./mprem_files 2>NUL");
+                runindisposeterm("mkdir ./mprem_files");
                 runCommandInMPremTerminal(`cd ./mprem_files`);
                 files.forEach(file => {
-                    runCommandInMPremTerminal(`mpremote connect ${input_device} cp :${file.trim()} ./${file.trim()} >NUL 2>&1`);
+                    runCommandInMPremTerminal(`mpremote connect ${input_device} cp :${file.trim()} ./${file.trim()}`);
                 });
                 runCommandInMPremTerminal(`cd ..`);
                 // runCommandInMPremTerminal(`mpremote connect ${input_device} ls`);
             } else if (selectedOption.label === "To") {
-                runCommandInMPremTerminal("mkdir ./mprem_files 2>NUL");
+                runCommandInMPremTerminal("mkdir ./mprem_files");
                 runCommandInMPremTerminal(`cd ./mprem_files`);
                 deleteConfirmation(true);
-                runCommandInMPremTerminal(`mpremote connect ${input_device} cp -r . : >NUL 2>&1`);
+                runCommandInMPremTerminal(`mpremote connect ${input_device} cp -r . :`);
                 runCommandInMPremTerminal(`cd ..`);
                 runCommandInMPremTerminal(`mpremote connect ${input_device} ls`);
             }
