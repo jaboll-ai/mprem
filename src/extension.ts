@@ -24,17 +24,15 @@ export function activate(context: vscode.ExtensionContext) {
     let sync = vscode.commands.registerCommand('mprem.sync', () => {
         sync_device();
     });
-    let sync_specific = vscode.commands.registerCommand('mprem.sync-specific', () => {
-        sync_device();
-    });
+    // let sync_specific = vscode.commands.registerCommand('mprem.sync-specific', () => {
+    //     sync_device();
+    // });
     let syncnclear = vscode.commands.registerCommand('mprem.syncnclear', () => {
         const files = parseFileLog();
         runCommandInMPremTerminal("mkdir ./mprem_files");
-        runCommandInMPremTerminal(`cd ./mprem_files`);
         files.forEach(file => {
-            runCommandInMPremTerminal(`mpremote connect ${input_device} cp :${file.trim()} ./${file.trim()}`);
+            runCommandInMPremTerminal(`mpremote connect ${input_device} cp :${file.trim()} ./mprem_files/${file.trim()}`);
         });
-        runCommandInMPremTerminal(`cd ..`);
         deleteConfirmation(true);
     });
     let run = vscode.commands.registerCommand('mprem.run', () => {
@@ -75,7 +73,6 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(mount);
     context.subscriptions.push(soft_reset);
     context.subscriptions.push(hard_reset);
-    context.subscriptions.push(sync_specific);
     let device_list = new MpremDevices(context, new MpremProvider());
 }
 
@@ -200,50 +197,52 @@ function parseDeviceLog(): string[] {
     return logContentRaw.split("\r\n");
 }
 
-function sync_device(specific = false) {
+async function sync_device() {
     var extension = "";
     if (!input_device) {
         vscode.commands.executeCommand("device_list.focus");
         vscode.window.showErrorMessage('No device set. Please set a device first.');
         return;
     }
-    if(specific){
-        vscode.window.showInputBox({ prompt: "Enter file extension" }).then((ext) => {
-            extension = `${ext}`;
-        })
-    }
+    const undext = await vscode.window.showInputBox({ prompt: "Enter file extension, leave blank for all" });
+    extension = undext ? undext : "";
     const options: vscode.QuickPickItem[] = [
         { label: 'From', description: '"From" device to local' },
         { label: 'To', description: 'From local "To" device' },
     ];
 
+    runCommandInMPremTerminal(`mkdir ./mprem_files`);
+    const files = parseFileLog();
     // Show the quick pick menu
     vscode.window.showQuickPick(options).then((selectedOption) => {
         if (selectedOption) {
             // Handle the selected option
             if (selectedOption.label === "From") {
-                const files = parseFileLog();
-                if(!specific){
-                    runCommandInMPremTerminal(`mkdir ./mprem_files && cd ./mprem_files`);
+                if(!extension) {
                     files.forEach(file => {
-                        runCommandInMPremTerminal(`mpremote connect ${input_device} cp :${file.trim()} ./${file.trim()}`);
+                        runCommandInMPremTerminal(`mpremote connect ${input_device} cp :${file.trim()} ./mprem_files/${file.trim()}`);
                     });
                 } else {
                     files.forEach(file => {
                         if (file.endsWith(extension)) {
-                            runCommandInMPremTerminal(`mpremote connect ${input_device} cp :${file.trim()} ./${file.trim()}`);
+                            runCommandInMPremTerminal(`mpremote connect ${input_device} cp :${file.trim()} ./mprem_files/${file.trim()}`);
                         }
                     });
                 }
-                runCommandInMPremTerminal(`cd ..`);
                 // runCommandInMPremTerminal(`mpremote connect ${input_device} ls`);
             } else if (selectedOption.label === "To") {
-                runCommandInMPremTerminal("mkdir ./mprem_files");
-                runCommandInMPremTerminal(`cd ./mprem_files`);
-                deleteConfirmation(true);
-                runCommandInMPremTerminal(`mpremote connect ${input_device} cp -r . :`);
-                runCommandInMPremTerminal(`cd ..`);
-                runCommandInMPremTerminal(`mpremote connect ${input_device} ls`);
+                if(!extension) {
+                    deleteConfirmation(true);
+                    runCommandInMPremTerminal(`mpremote connect ${input_device} cp -r ./mprem_files/ :`);
+                    runCommandInMPremTerminal(`mpremote connect ${input_device} ls`);
+                }
+                else {
+                    files.forEach(file => {
+                        if (file.endsWith(extension)) {
+                            runCommandInMPremTerminal(`mpremote connect ${input_device} cp :${file.trim()} ./mprem_files/${file.trim()}`);
+                        }
+                    });
+                }
             }
         }
     });
