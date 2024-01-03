@@ -8,6 +8,7 @@ import * as jschardet from 'jschardet';
 import * as iconv from 'iconv-lite';
 
 var input_device = "";
+var auto_device = false;
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
@@ -20,6 +21,9 @@ export function activate(context: vscode.ExtensionContext) {
     // The commandId parameter must match the command field in package.json
     let clear = vscode.commands.registerCommand('mprem.clear', () => {
         deleteConfirmation();
+    });
+    let override_device = vscode.commands.registerCommand('mprem.override', () => {
+        auto_device = true;
     });
     let sync = vscode.commands.registerCommand('mprem.sync', () => {
         sync_device();
@@ -73,6 +77,7 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(mount);
     context.subscriptions.push(soft_reset);
     context.subscriptions.push(hard_reset);
+    context.subscriptions.push(override_device);
     let device_list = new MpremDevices(context, new MpremProvider());
 }
 
@@ -80,10 +85,14 @@ export function activate(context: vscode.ExtensionContext) {
 export function deactivate() { }
 
 function runCommandInMPremTerminal(command: string) {
-    if (!input_device) {
+    if (!input_device && !auto_device) {
         vscode.commands.executeCommand("device_list.focus");
         vscode.window.showErrorMessage('No device set. Please set a device first.');
         return;
+    }
+    if(auto_device) {
+        const cmd_words = command.split(" ");
+        command = command.split(" ").splice(1,2).join(" ");
     }
     // Find the terminal with the specified name
     const mpremTerminal = vscode.window.terminals.find((terminal) => terminal.name === 'mprem');

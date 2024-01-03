@@ -8,7 +8,7 @@
   "publisher": "jaboll",
   "icon": "resources/mprem_logo.png",
   "description": "A mpremote wrapper",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "engines": {
     "vscode": "^1.84.0"
   },
@@ -50,6 +50,10 @@
       {
         "command": "mprem.hard_reset",
         "title": "mprem Hard-Reset: Reset device"
+      },
+      {
+        "command": "mprem.override_device",
+        "title": "(Dev) mprem Override"
       },
       {
         "command": "device_list.refreshEntry",
