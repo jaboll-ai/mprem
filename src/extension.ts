@@ -161,13 +161,29 @@ function getActiveFilePath(only_name = false): string | undefined {
 }
 
 async function parseFileLog(): Promise<string[]> {
-    
+    const output = await execShell("mpremote connect list");
+    const content = output.trim();
+    return content.split('\n');
 }
 
 async function getDevices(): Promise<string[]> {
     const output = await execShell("mpremote connect list");
     const logContentRaw = output.trim();
     return logContentRaw.split("\n");
+}
+
+async function copy_file_from(extension:String) {
+    if(!extension) {
+        files.forEach(file => {
+            runCommandInMPremTerminal(`mpremote connect ${input_device} cp :${file.trim()} ./mprem_files/${file.trim()}`);
+        });
+    } else {
+        files.forEach(file => {
+            if (file.endsWith(extension)) {
+                runCommandInMPremTerminal(`mpremote connect ${input_device} cp :${file.trim()} ./mprem_files/${file.trim()}`);
+            }
+        });
+    }
 }
 
 async function sync_device() {
@@ -191,17 +207,7 @@ async function sync_device() {
         if (selectedOption) {
             // Handle the selected option
             if (selectedOption.label === "From") {
-                if(!extension) {
-                    files.forEach(file => {
-                        runCommandInMPremTerminal(`mpremote connect ${input_device} cp :${file.trim()} ./mprem_files/${file.trim()}`);
-                    });
-                } else {
-                    files.forEach(file => {
-                        if (file.endsWith(extension)) {
-                            runCommandInMPremTerminal(`mpremote connect ${input_device} cp :${file.trim()} ./mprem_files/${file.trim()}`);
-                        }
-                    });
-                }
+                copy_file_from(extension);
                 // runCommandInMPremTerminal(`mpremote connect ${input_device} ls`);
             } else if (selectedOption.label === "To") {
                 if(!extension) {
