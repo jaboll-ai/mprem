@@ -6,6 +6,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as jschardet from 'jschardet';
 import * as iconv from 'iconv-lite';
+import * as cp from 'child_process';
 
 var input_device = "";
 var auto_device = false;
@@ -84,6 +85,17 @@ export function activate(context: vscode.ExtensionContext) {
 // This method is called when your extension is deactivated
 export function deactivate() { }
 
+const execShell = (cmd: string) =>
+    new Promise<string>((resolve, reject) => {
+      cp.exec(cmd, (err, out) => {
+        if (err) {
+          return resolve(cmd+' error!');
+          //or,  reject(err);
+        }
+        return resolve(out);
+      });
+    });
+
 function runCommandInMPremTerminal(command: string) {
     if (!input_device && !auto_device) {
         vscode.commands.executeCommand("device_list.focus");
@@ -108,7 +120,6 @@ function runCommandInMPremTerminal(command: string) {
 }
 
 async function deleteConfirmation(supress = false) {
-    log_files();
     if (!input_device) {
         vscode.commands.executeCommand("device_list.focus");
         vscode.window.showErrorMessage('No device set. Please set a device first.');
@@ -126,7 +137,7 @@ async function deleteConfirmation(supress = false) {
     }
 
     if (userResponse === 'Yes') {
-        const file_lst = parseFileLog();
+        const file_lst = await parseFileLog();
         file_lst.forEach(file => {
             if (file !== "boot.py") {
                 runCommandInMPremTerminal(`mpremote connect ${input_device} rm ${file.trim()}`);
@@ -148,62 +159,15 @@ function getActiveFilePath(only_name = false): string | undefined {
         return f_path;
     }
 }
-function log_files() {
-    const temp_path = path.resolve(os.tmpdir(), ".mprem_log");
-    runCommandInMPremTerminal(`mpremote connect ${input_device} ls > \"${temp_path}\"`);
-    while (!fs.readFileSync(temp_path, "utf-8")) {}
-}
-function log_devices() {
-    const temp_path = path.resolve(os.tmpdir(), ".mprem_devices_log");
-    runindisposeterm(`mpremote connect list >\"${temp_path}\"`);
-    while (!fs.existsSync(temp_path)) {}
-}
-async function runindisposeterm(command: string) {
-    const newTerminal = vscode.window.createTerminal({
-        name: 'Background Task',
-        hideFromUser: true,
-    });
-    newTerminal.sendText(command);
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    newTerminal.dispose();
+
+async function parseFileLog(): Promise<string[]> {
+    
 }
 
-function detectFileEncodingandRead(filePath: string): string {
-    const buffer = fs.readFileSync(filePath);
-    const result = jschardet.detect(buffer);
-    while(!result.encoding) {}
-    const encoding = result.encoding.toLowerCase();
-    const content = iconv.decode(buffer, encoding);
-    return content;
-}
-
-function parseFileLog(): string[] {
-    log_files();
-    const my_path = path.resolve(os.tmpdir(), '.mprem_log');
-    console.log("Waiting for .mprem_log to be created...");
-    while (!fs.existsSync(my_path)) {}
-    console.log("Finished.\nWaiting for .mprem_log to be populated...");
-    while (fs.readFileSync(my_path, 'utf-8') === "") {}
-    const logContentRaw = detectFileEncodingandRead(my_path);
-    const tmp1 = logContentRaw.replace(/^.{13}/gm, '');
-    const tmpList = tmp1.split('\r\n');
-    runindisposeterm(`rm \"${my_path}\"`);
-    console.log("Log deleted");
-    return tmpList.slice(0, -2);
-}
-
-function parseDeviceLog(): string[] {
-    log_devices();
-    const my_path = path.resolve(os.tmpdir(), '.mprem_devices_log');
-    console.log("Waiting for .mprem_devices_log to be created...");
-    while (!fs.existsSync(my_path)) {}
-    console.log("Finished.\nWaiting for .mprem_devices_log to be populated...");
-    while (fs.readFileSync(my_path, 'utf-8') === "") {}
-    console.log("Finished.\nEverything is ready.");
-    const logContentRaw = detectFileEncodingandRead(my_path).trim(); //Remove trim() for empty button
-    runindisposeterm(`rm \"${my_path}\"`);
-    console.log("Log deleted");
-    return logContentRaw.split("\r\n");
+async function getDevices(): Promise<string[]> {
+    const output = await execShell("mpremote connect list");
+    const logContentRaw = output.trim();
+    return logContentRaw.split("\n");
 }
 
 async function sync_device() {
@@ -221,7 +185,7 @@ async function sync_device() {
     ];
 
     runCommandInMPremTerminal(`mkdir ./mprem_files`);
-    const files = parseFileLog();
+    const files = await parseFileLog();
     // Show the quick pick menu
     vscode.window.showQuickPick(options).then((selectedOption) => {
         if (selectedOption) {
@@ -277,8 +241,8 @@ class MpremProvider implements vscode.TreeDataProvider<vscode.TreeItem> {
         return undefined;
     }
 
-    private buildTreeItems(): vscode.TreeItem[] {
-        const devices_list = parseDeviceLog();
+    private async buildTreeItems(): Promise<vscode.TreeItem[]> {
+        const devices_list = await getDevices();
         return devices_list.map(device =>
             new MpremDeviceItem(device, device.replace(/(?<=\w) .+/g, "").trim())
         );
@@ -287,7 +251,6 @@ class MpremProvider implements vscode.TreeDataProvider<vscode.TreeItem> {
     readonly onDidChangeTreeData: vscode.Event<vscode.TreeItem | undefined | null | void> = this._onDidChangeTreeData.event;
 
     refresh(): void {
-        log_devices();
         this._onDidChangeTreeData.fire();
     }
 }
