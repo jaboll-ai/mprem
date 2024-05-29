@@ -8,7 +8,7 @@
   "publisher": "jaboll",
   "icon": "resources/mprem_logo.png",
   "description": "A mpremote wrapper",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "engines": {
     "vscode": "^1.84.0"
   },
@@ -53,7 +53,7 @@
       },
       {
         "command": "mprem.override_device",
-        "title": "(Dev) mprem Override"
+        "title": "[DEV] mprem Override (toggle)"
       },
       {
         "command": "device_list.refreshEntry",

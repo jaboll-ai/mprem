@@ -2,10 +2,6 @@
 // Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
 import * as path from 'path';
-import * as fs from 'fs';
-import * as os from 'os';
-import * as jschardet from 'jschardet';
-import * as iconv from 'iconv-lite';
 import * as cp from 'child_process';
 
 var input_device = "";
@@ -24,7 +20,7 @@ export function activate(context: vscode.ExtensionContext) {
         deleteConfirmation();
     });
     let override_device = vscode.commands.registerCommand('mprem.override', () => {
-        auto_device = true;
+        auto_device = !auto_device;
     });
     let sync = vscode.commands.registerCommand('mprem.sync', () => {
         sync_device();
@@ -33,18 +29,15 @@ export function activate(context: vscode.ExtensionContext) {
     //     sync_device();
     // });
     let syncnclear = vscode.commands.registerCommand('mprem.syncnclear', () => {
-        const files = parseFileLog();
         runCommandInMPremTerminal("mkdir ./mprem_files");
-        files.forEach(file => {
-            runCommandInMPremTerminal(`mpremote connect ${input_device} cp :${file.trim()} ./mprem_files/${file.trim()}`);
-        });
+        copy_file_from("");
         deleteConfirmation(true);
     });
     let run = vscode.commands.registerCommand('mprem.run', () => {
         const activeFilePath = getActiveFilePath();
         // const activeFileName = getActiveFilePath(true);
         if (activeFilePath) {
-            runCommandInMPremTerminal(`mpremote connect ${input_device} run \"${activeFilePath}\"`);
+            runCommandInMPremTerminal(`mpremote run \"${activeFilePath}\"`);
         } else {
             vscode.window.showErrorMessage('No active file.');
         }
@@ -52,22 +45,20 @@ export function activate(context: vscode.ExtensionContext) {
     let save = vscode.commands.registerCommand('mprem.save', () => {
         const activeFilePath = getActiveFilePath();
         if (activeFilePath) {
-            runCommandInMPremTerminal(`mpremote connect ${input_device} cp \"${activeFilePath}\" :.`);
+            runCommandInMPremTerminal(`mpremote cp \"${activeFilePath}\" :.`);
         } else {
             vscode.window.showErrorMessage('No active file.');
         }
     });
     let mount = vscode.commands.registerCommand('mprem.mount', () => {
         runCommandInMPremTerminal("mkdir ./remote");
-        runCommandInMPremTerminal(`cd ./remote`);
-        runCommandInMPremTerminal(`mpremote connect ${input_device} mount ./`);
-        runCommandInMPremTerminal(`cd ..`);
+        runCommandInMPremTerminal("mpremote mount ./remote");
     });
     let soft_reset = vscode.commands.registerCommand('mprem.soft_reset', () => {
-        runCommandInMPremTerminal(`mpremote connect ${input_device} soft-reset`);
+        runCommandInMPremTerminal("mpremote soft-reset");
     });
     let hard_reset = vscode.commands.registerCommand('mprem.hard_reset', () => {
-        runCommandInMPremTerminal(`mpremote connect ${input_device} reset`);
+        runCommandInMPremTerminal("mpremote reset");
     });
 
     context.subscriptions.push(clear);
@@ -102,9 +93,8 @@ function runCommandInMPremTerminal(command: string) {
         vscode.window.showErrorMessage('No device set. Please set a device first.');
         return;
     }
-    if(auto_device) {
-        const cmd_words = command.split(" ");
-        command = command.split(" ").splice(1,2).join(" ");
+    if(!auto_device) {
+        command = command.replace("mpremote", `mpremote connect ${input_device}`);
     }
     // Find the terminal with the specified name
     const mpremTerminal = vscode.window.terminals.find((terminal) => terminal.name === 'mprem');
@@ -137,11 +127,11 @@ async function deleteConfirmation(supress = false) {
     }
 
     if (userResponse === 'Yes') {
-        const file_lst = await parseFileLog();
+        const file_lst = await getFiles();
         file_lst.forEach(file => {
             if (file !== "boot.py") {
-                runCommandInMPremTerminal(`mpremote connect ${input_device} rm ${file.trim()}`);
-                // runCommandInMPremTerminal(`mpremote connect ${input_device} ls`);
+                runCommandInMPremTerminal(`mpremote rm ${file.trim()}`);
+                // runCommandInMPremTerminal("mpremote ls");
             }
         });
     } else {
@@ -160,28 +150,32 @@ function getActiveFilePath(only_name = false): string | undefined {
     }
 }
 
-async function parseFileLog(): Promise<string[]> {
-    const output = await execShell("mpremote connect list");
+async function getFiles(myPath=""): Promise<string[]> {
+    if(!myPath){
+        var output = await execShell(auto_device ? "mpremote ls" : `mpremote connect ${input_device}`);
+    } else {
+        var output = await execShell(`ls ${path.resolve(myPath)}`);
+    } 
     const content = output.trim();
     return content.split('\n');
 }
 
 async function getDevices(): Promise<string[]> {
     const output = await execShell("mpremote connect list");
-    const logContentRaw = output.trim();
-    return logContentRaw.split("\n");
+    const content = output.trim();
+    return content.split("\n");
 }
 
 async function copy_file_from(extension:string) {
-    const files = await parseFileLog();
+    const files = await getFiles();
     if(!extension) {
         files.forEach(file => {
-            runCommandInMPremTerminal(`mpremote connect ${input_device} cp :${file.trim()} ./mprem_files/${file.trim()}`);
+            runCommandInMPremTerminal(`mpremote cp :${file.trim()} ./mprem_files/${file.trim()}`);
         });
     } else {
         files.forEach(file => {
             if (file.endsWith(extension)) {
-                runCommandInMPremTerminal(`mpremote connect ${input_device} cp :${file.trim()} ./mprem_files/${file.trim()}`);
+                runCommandInMPremTerminal(`mpremote cp :${file.trim()} ./mprem_files/${file.trim()}`);
             }
         });
     }
@@ -200,8 +194,8 @@ async function sync_device() {
         { label: 'From', description: '"From" device to local' },
         { label: 'To', description: 'From local "To" device' },
     ];
-    const files = 
-    runCommandInMPremTerminal(`mkdir ./mprem_files`);
+    runCommandInMPremTerminal("mkdir ./mprem_files");
+    const files = await getFiles("./mprem_files");
     // Show the quick pick menu
     vscode.window.showQuickPick(options).then((selectedOption) => {
         if (selectedOption) {
@@ -211,13 +205,13 @@ async function sync_device() {
             } else if (selectedOption.label === "To") {
                 if(!extension) {
                     deleteConfirmation(true);
-                    runCommandInMPremTerminal(`mpremote connect ${input_device} cp -r ./mprem_files/ :`);
-                    runCommandInMPremTerminal(`mpremote connect ${input_device} ls`);
+                    runCommandInMPremTerminal("mpremote cp -r ./mprem_files/ :");
+                    runCommandInMPremTerminal("mpremote ls");
                 }
                 else {
                     files.forEach(file => {
                         if (file.endsWith(extension)) {
-                            runCommandInMPremTerminal(`mpremote connect ${input_device} cp :${file.trim()} ./mprem_files/${file.trim()}`);
+                            runCommandInMPremTerminal(`mpremote cp :${file.trim()} ./mprem_files/${file.trim()}`);
                         }
                     });
                 }
