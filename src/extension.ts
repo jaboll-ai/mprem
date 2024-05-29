@@ -172,7 +172,8 @@ async function getDevices(): Promise<string[]> {
     return logContentRaw.split("\n");
 }
 
-async function copy_file_from(extension:String) {
+async function copy_file_from(extension:string) {
+    const files = await parseFileLog();
     if(!extension) {
         files.forEach(file => {
             runCommandInMPremTerminal(`mpremote connect ${input_device} cp :${file.trim()} ./mprem_files/${file.trim()}`);
@@ -199,16 +200,14 @@ async function sync_device() {
         { label: 'From', description: '"From" device to local' },
         { label: 'To', description: 'From local "To" device' },
     ];
-
+    const files = 
     runCommandInMPremTerminal(`mkdir ./mprem_files`);
-    const files = await parseFileLog();
     // Show the quick pick menu
     vscode.window.showQuickPick(options).then((selectedOption) => {
         if (selectedOption) {
             // Handle the selected option
             if (selectedOption.label === "From") {
                 copy_file_from(extension);
-                // runCommandInMPremTerminal(`mpremote connect ${input_device} ls`);
             } else if (selectedOption.label === "To") {
                 if(!extension) {
                     deleteConfirmation(true);
