@@ -6,6 +6,7 @@ import * as cp from 'child_process';
 
 var input_device = "";
 var auto_device = false;
+const seperator = process.platform==="win32" ? "\r\n" : "\n";
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
@@ -157,13 +158,13 @@ async function getFiles(myPath=""): Promise<string[]> {
         var output = await execShell(`ls ${path.resolve(myPath)}`);
     } 
     const content = output.trim();
-    return content.split('\n');
+    return content.split(seperator);
 }
 
 async function getDevices(): Promise<string[]> {
     const output = await execShell("mpremote connect list");
     const content = output.trim();
-    return content.split("\n");
+    return content.split(seperator);
 }
 
 async function copy_file_from(extension:string) {
