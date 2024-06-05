@@ -130,7 +130,10 @@ export function activate(context: vscode.ExtensionContext) {
         runCommandInMPremTerminal(`${mpremote} soft-reset`);
     });
     let hard_reset = vscode.commands.registerCommand('mprem.hard_reset', () => {
-        runCommandInMPremTerminal(`${mpremote} reset`);
+        // runCommandInMPremTerminal(`${mpremote} reset`);
+        getFiles().then(files => {
+            console.log(files);
+        });
     });
 
     context.subscriptions.push(clear);
@@ -218,6 +221,14 @@ async function flashFirmware() {
                         downloadFile(selectedBin, binpath).then(() => {
                             runCommandInMPremTerminal(`${esptool} --port ${input_device} write_flash --flash_mode keep --flash_size keep --erase-all 0x1000 ${binpath}`);
                         });
+                        vscode.window.withProgress({
+                            location: vscode.ProgressLocation.Notification,
+                            title: "Flashing firmware",
+                            cancellable: false
+                        }, async (progress, token) => {
+                            progress.report({ message: "Please wait (appr. 2 min)..." });
+                            await new Promise(resolve => setTimeout(resolve, 115000));
+                        });
                     }
                 });
                 console.log('Binary links:', binLinks);
@@ -303,12 +314,17 @@ function getActiveFilePath(only_name = false): string | undefined {
 
 async function getFiles(myPath=""): Promise<string[]> {
     if(!myPath){
-        var output = await execShell(auto_device ? `${mpremote} ls` : `${mpremote} connect ${input_device}`);
+        if (!input_device && !auto_device) {
+            vscode.commands.executeCommand("device_list.focus");
+            vscode.window.showErrorMessage('No device set. Please set a device first.');
+            return [];
+        }
+        var output = await execShell(auto_device ? `${mpremote} ls` : `${mpremote} connect ${input_device} ls`);
     } else {
         var output = await execShell(`ls ${path.resolve(myPath)}`);
     } 
-    const content = output.trim();
-    return content.split(seperator);
+    const content = output.split(seperator).map((s) => s.trim().split(" ")[1]);
+    return content.slice(0, content.length - 2);
 }
 
 async function getDevices(): Promise<string[]> {
