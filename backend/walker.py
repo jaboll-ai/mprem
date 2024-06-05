@@ -40,6 +40,6 @@ def walk(top):
 main_path = "/" if len(sys.argv) < 2 else sys.argv[1]
 # Example usage:
 for root, dirs, files in walk(main_path):
+    print(root)
     for file in files:
         print(join(root, file))
-    print(root)

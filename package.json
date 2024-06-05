@@ -21,7 +21,7 @@
     "commands": [
       {
         "command": "mprem.clear",
-        "title": "mprem Clear: Cleares all files from device and write to local"
+        "title": "mprem Clear: Cleares all files from device"
       },
       {
         "command": "mprem.sync",
@@ -29,7 +29,7 @@
       },
       {
         "command": "mprem.syncnclear",
-        "title": "mprem Sync & Clear: Sync all the files from device to local and clear device"
+        "title": "mprem Sync & Clear: download everything from device and clear"
       },
       {
         "command": "mprem.run",
