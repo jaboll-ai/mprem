@@ -25,9 +25,6 @@ export function activate(context: vscode.ExtensionContext) {
     if(!fs.existsSync(path.join(context.extensionPath, 'bin'))) {
         fs.mkdirSync(path.join(context.extensionPath, 'bin'));
     }
-    if (!fs.existsSync(walker)) {
-        downloadFile('https://raw.githubusercontent.com/YolloPlays/mprem/main/backend/walker.py', walker);
-    }
     vpath = path.join(context.extensionPath, 'python');
     ppath = path.join(context.extensionPath, 'python', 'Scripts', process.platform==="win32" ? 'python.exe' : 'python3');
     esptool = path.join(context.extensionPath, 'python', 'Scripts', process.platform==="win32" ? 'esptool.exe' : 'esptool.py');
@@ -43,7 +40,7 @@ export function activate(context: vscode.ExtensionContext) {
             const terminal = vscode.window.createTerminal('backend');
             terminal.show();
             const python = process.platform==="win32" ? "python" : "python3";
-            terminal.sendText(`${python} -m venv ${vpath} && ${ppath} -m pip install esptool mpremote`);
+            terminal.sendText(`${python} -m venv ${vpath} && ${ppath} -m pip install --upgrade pip && ${ppath} -m pip install esptool mpremote`);
             const checkFileExists = async (filePath: string) => {
                 return new Promise<boolean>((resolve) => {
                     fs.access(filePath, fs.constants.F_OK, (err) => {
@@ -55,12 +52,16 @@ export function activate(context: vscode.ExtensionContext) {
                 await new Promise(resolve => setTimeout(resolve, 2000));
             }
             vscode.window.showInformationMessage('Python backend created');
+            terminal.dispose();
             setTimeout(() => {
                 vscode.commands.executeCommand("device_list.refreshEntry");
             }, 1000);
         });
         // vscode.window.showInformationMessage('A restart of Visual Studio Code might be required');
         
+    }
+    if (!fs.existsSync(walker)) {
+        downloadFile('https://raw.githubusercontent.com/YolloPlays/mprem/main/backend/walker.py', walker);
     }
 
     let clear = vscode.commands.registerCommand('mprem.clear', () => {
@@ -95,13 +96,6 @@ export function activate(context: vscode.ExtensionContext) {
     // let sync_specific = vscode.commands.registerCommand('mprem.sync-specific', () => {
     //     sync_device();
     // });
-    let syncnclear = vscode.commands.registerCommand('mprem.syncnclear', () => {
-        if(!fs.existsSync(path.join(getCurrentWorkspaceFolderPath(), 'mprem_files'))) {
-            fs.mkdirSync(path.join(getCurrentWorkspaceFolderPath(), 'mprem_files'));
-        }
-        copy_file_from("");
-        deleteConfirmation(true);
-    });
     let run = vscode.commands.registerCommand('mprem.run', () => {
         const activeFilePath = getActiveFilePath();
         // const activeFileName = getActiveFilePath(true);
@@ -134,7 +128,6 @@ export function activate(context: vscode.ExtensionContext) {
 
     context.subscriptions.push(clear);
     context.subscriptions.push(sync);
-    context.subscriptions.push(syncnclear);
     context.subscriptions.push(run);
     context.subscriptions.push(save);
     context.subscriptions.push(mount);
@@ -208,6 +201,11 @@ async function downloadFile(url: string, filePath: string): Promise<void> {
 }
 
 async function flashFirmware() {
+    if (!input_device && !auto_device) {
+        vscode.commands.executeCommand("device_list.focus");
+        vscode.window.showErrorMessage('No device set. Please set a device first.');
+        return;
+    }
     let boards = await fetchBoardLinks();
     vscode.window.showQuickPick(boards).then((selectedItem) => {
         if (selectedItem) {
@@ -222,7 +220,7 @@ async function flashFirmware() {
                         vscode.window.withProgress({
                             location: vscode.ProgressLocation.Notification,
                             title: "Flashing firmware",
-                            cancellable: false
+                            cancellable: true
                         }, async (progress, token) => {
                             progress.report({ message: "Please wait (appr. 2 min)..." });
                             await new Promise(resolve => setTimeout(resolve, 115000));
@@ -288,9 +286,7 @@ async function deleteConfirmation(supress = false) {
 
     if (userResponse === 'Yes') {
         const file_lst = (await getFiles()).reverse();
-        console.log(file_lst);
         file_lst.forEach(file => {
-            console.log(file);
             if (file !== "/boot.py" && file !== "/") {
                 runCommandInMPremTerminal(`${mpremote} rm ${file.trim()}`);
                 // runCommandInMPremTerminal("mpremote ls");
@@ -350,39 +346,33 @@ async function getDevices(): Promise<string[]> {
 
 async function copy_file_from(extension:string) {
     const files = await getFiles();
-    if(!extension) {
-        files.forEach(file => {
-            const subPath = file.trim().split("mprem_files").pop()?.replaceAll("\\", "/");
-            // createFolders(subPath);
-            console.log(subPath);
-            // runCommandInMPremTerminal(`${mpremote} cp :${file.trim()} ./mprem_files/${file.trim()}`);
-        });
-    } else {
-        files.forEach(file => {
-            if (file.endsWith(extension)) {
-                runCommandInMPremTerminal(`${mpremote} cp :${file.trim()} ./mprem_files/${file.trim()}`);
-            }
-        });
-    }
+    console.log(path.join(getCurrentWorkspaceFolderPath(), 'mprem_files'));
+    files.forEach(file => {
+        if (file.includes('.') && (!extension || file.endsWith(extension))) {
+            createFolders(path.join(getCurrentWorkspaceFolderPath(), 'mprem_files', file), false);
+            runCommandInMPremTerminal(`${mpremote} cp :${file.trim()} ./mprem_files/${file.trim()}`);
+        }
+    });
 }
 
 function createFolders(pth: string | undefined, microcontroller=true): void {
     if (typeof pth !== 'string') {
         return;
     }
-    if (microcontroller) {
-        var folders = pth.split('/');
-    } else {
-        var folders = pth.split(path.sep);
+    var sep = microcontroller ? "/" : path.sep;
+    let folders = pth.split(sep);
+    let currentPath = "";
+    if(process.platform==="win32" && !microcontroller){ //overwrite for windows... again
+        folders = folders.slice(1, folders.length);
+        currentPath =  "C:\\";
     }
-    let currentPath = '';
     folders.forEach((folder, index) => {
         // Check if the last part is a file
         if (index === folders.length - 1 && folder.includes('.')) {
             return;
         }
         if (folder) {
-            currentPath += `/${folder}`;
+            currentPath += `${sep}${folder}`;
             if (microcontroller){
                 runCommandInMPremTerminal(`${mpremote} mkdir ${currentPath}`);
             } else {
@@ -402,7 +392,7 @@ async function sync_device() {
         return;
     }
     const undext = await vscode.window.showInputBox({ prompt: "Enter file extension, leave blank for all" });
-    extension = undext ? undext : "";
+    extension = undext ? undext.replace(".", "") : "";
     const options: vscode.QuickPickItem[] = [
         { label: 'From', description: '"From" device to local' },
         { label: 'To', description: 'From local "To" device' },
@@ -418,20 +408,14 @@ async function sync_device() {
             if (selectedOption.label === "From") {
                 copy_file_from(extension);
             } else if (selectedOption.label === "To") {
-                if(!extension) {
-                    deleteConfirmation(true);
-                    runCommandInMPremTerminal(`${mpremote} cp -r ./mprem_files/ :`);
-                }
-                else {
-                    files.forEach(file => {
-                        if (file.endsWith(extension)) {
-                            const subPath = file.trim().split("mprem_files").pop()?.replaceAll("\\", "/");
-                            createFolders(subPath);
-                            runCommandInMPremTerminal(`${mpremote} cp ${file.trim()} :${subPath}`);
-                            // console.log(file)
-                        }
-                    });
-                }
+                files.forEach(file => {
+                    if (file.includes('.') && (!extension || file.endsWith(extension))) {
+                        const subPath = file.trim().split("mprem_files").pop()?.replaceAll("\\", "/");
+                        createFolders(subPath);
+                        runCommandInMPremTerminal(`${mpremote} cp ${file.trim()} :${subPath}`);
+                    }
+                });
+                
             }
         }
     });

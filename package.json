@@ -28,10 +28,6 @@
         "title": "mprem Sync: Sync all the files to/from device"
       },
       {
-        "command": "mprem.syncnclear",
-        "title": "mprem Sync & Clear: download everything from device and clear"
-      },
-      {
         "command": "mprem.run",
         "title": "mprem Run: Run current file in RAM"
       },
