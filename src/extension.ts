@@ -2,17 +2,66 @@
 // Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
 import * as path from 'path';
+import * as cp from 'child_process';
 import * as fs from 'fs';
-import * as os from 'os';
-import * as jschardet from 'jschardet';
-import * as iconv from 'iconv-lite';
+import axios from 'axios';
+import * as cheerio from 'cheerio';
 
 var input_device = "";
 var auto_device = false;
+const seperator = process.platform==="win32" ? "\r\n" : "\n";
+let binpath = "";
+let mpremote = "";
+let esptool = "";
+let vpath = "";
+let ppath = "";
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
 
+    binpath = path.join(context.extensionPath, 'bin', 'firmware.bin');
+    if(!fs.existsSync(path.join(context.extensionPath, 'bin'))) {
+        fs.mkdirSync(path.join(context.extensionPath, 'bin'));
+    }
+    vpath = path.join(context.extensionPath, 'python');
+    ppath = path.join(context.extensionPath, 'python', 'Scripts', process.platform==="win32" ? 'python.exe' : 'python3');
+    esptool = path.join(context.extensionPath, 'python', 'Scripts', process.platform==="win32" ? 'esptool.exe' : 'esptool.py');
+    mpremote = path.join(context.extensionPath, 'python', 'Scripts', 'mpremote');
+    if (!fs.existsSync(vpath)) {
+        vscode.window.showErrorMessage('Missing, creating python backend');
+        vscode.window.withProgress({
+            location: vscode.ProgressLocation.Notification,
+            title: "mprem",
+            cancellable: false
+        }, async (progress, token) => {
+            progress.report({ message: "Please wait for python backend..." });
+            console.log(vpath, esptool);
+            const terminal = vscode.window.createTerminal('backend');
+            terminal.show();
+            const python = process.platform==="win32" ? "python" : "python3";
+            terminal.sendText(`${python} -m venv ${vpath} && ${ppath} -m pip install esptool mpremote`);
+            const checkFileExists = async (filePath: string) => {
+                return new Promise<boolean>((resolve) => {
+                    fs.access(filePath, fs.constants.F_OK, (err) => {
+                        resolve(!err);
+                    });
+                });
+            };
+            while (!(await checkFileExists(esptool))) {
+                await new Promise(resolve => setTimeout(resolve, 2000));
+            }
+            vscode.window.showInformationMessage('Python backend created');
+            setTimeout(() => {
+                vscode.commands.executeCommand("device_list.refreshEntry");
+            }, 1000);
+        });
+        // vscode.window.showInformationMessage('A restart of Visual Studio Code might be required');
+        
+    }
+    
+
+
+    console.log('Extension "mprem" is now active! Path:', context.extensionPath);
     // Use the console to output diagnostic information (console.log) and errors (console.error)
     // This line of code will only be executed once when your extension is activated
     console.log('Congratulations, your extension "mprem" is now active!');
@@ -22,8 +71,28 @@ export function activate(context: vscode.ExtensionContext) {
     let clear = vscode.commands.registerCommand('mprem.clear', () => {
         deleteConfirmation();
     });
+    let repair_backend = vscode.commands.registerCommand('mprem.repair', () => {
+        const deleteFolderRecursive = (folderPath: string) => {
+            if (fs.existsSync(folderPath)) {
+                fs.readdirSync(folderPath).forEach((file) => {
+                    const curPath = `${folderPath}/${file}`;
+                    if (fs.lstatSync(curPath).isDirectory()) { // recurse
+                        deleteFolderRecursive(curPath);
+                    } else { // delete file
+                        fs.unlinkSync(curPath);
+                    }
+                });
+                fs.rmdirSync(folderPath);
+            }
+        };
+        deleteFolderRecursive(vpath);
+        vscode.window.showInformationMessage('Please restart Visual Studio Code');
+    });
     let override_device = vscode.commands.registerCommand('mprem.override', () => {
-        auto_device = true;
+        auto_device = !auto_device;
+    });
+    let flash = vscode.commands.registerCommand('mprem.flash', () => {
+        flashFirmware();
     });
     let sync = vscode.commands.registerCommand('mprem.sync', () => {
         sync_device();
@@ -32,18 +101,15 @@ export function activate(context: vscode.ExtensionContext) {
     //     sync_device();
     // });
     let syncnclear = vscode.commands.registerCommand('mprem.syncnclear', () => {
-        const files = parseFileLog();
         runCommandInMPremTerminal("mkdir ./mprem_files");
-        files.forEach(file => {
-            runCommandInMPremTerminal(`mpremote connect ${input_device} cp :${file.trim()} ./mprem_files/${file.trim()}`);
-        });
+        copy_file_from("");
         deleteConfirmation(true);
     });
     let run = vscode.commands.registerCommand('mprem.run', () => {
         const activeFilePath = getActiveFilePath();
         // const activeFileName = getActiveFilePath(true);
         if (activeFilePath) {
-            runCommandInMPremTerminal(`mpremote connect ${input_device} run \"${activeFilePath}\"`);
+            runCommandInMPremTerminal(`${mpremote} run \"${activeFilePath}\"`);
         } else {
             vscode.window.showErrorMessage('No active file.');
         }
@@ -51,22 +117,20 @@ export function activate(context: vscode.ExtensionContext) {
     let save = vscode.commands.registerCommand('mprem.save', () => {
         const activeFilePath = getActiveFilePath();
         if (activeFilePath) {
-            runCommandInMPremTerminal(`mpremote connect ${input_device} cp \"${activeFilePath}\" :.`);
+            runCommandInMPremTerminal(`${mpremote} cp \"${activeFilePath}\" :.`);
         } else {
             vscode.window.showErrorMessage('No active file.');
         }
     });
     let mount = vscode.commands.registerCommand('mprem.mount', () => {
         runCommandInMPremTerminal("mkdir ./remote");
-        runCommandInMPremTerminal(`cd ./remote`);
-        runCommandInMPremTerminal(`mpremote connect ${input_device} mount ./`);
-        runCommandInMPremTerminal(`cd ..`);
+        runCommandInMPremTerminal(`${mpremote} mount ./remote`);
     });
     let soft_reset = vscode.commands.registerCommand('mprem.soft_reset', () => {
-        runCommandInMPremTerminal(`mpremote connect ${input_device} soft-reset`);
+        runCommandInMPremTerminal(`${mpremote} soft-reset`);
     });
     let hard_reset = vscode.commands.registerCommand('mprem.hard_reset', () => {
-        runCommandInMPremTerminal(`mpremote connect ${input_device} reset`);
+        runCommandInMPremTerminal(`${mpremote} reset`);
     });
 
     context.subscriptions.push(clear);
@@ -84,15 +148,104 @@ export function activate(context: vscode.ExtensionContext) {
 // This method is called when your extension is deactivated
 export function deactivate() { }
 
+const fetchBoardLinks = async () => {
+    try {
+        const response = await axios.get('https://micropython.org/download/');
+        const $ = cheerio.load(response.data);
+        const cards = $('.board-card');
+        const boards: string[] = [];
+        cards.each((index, element) => {
+            const href = $(element).attr('href');
+            if (href) {
+                boards.push(href);
+            }
+        });
+        return boards;
+    } catch (error) {
+        console.error('Error fetching board links:', error);
+        return [];
+    }
+};
+
+async function getBins(boardCode: string): Promise<string[]> {
+    try {
+        const response = await axios.get(`https://micropython.org/download/${boardCode}`);
+        const $ = cheerio.load(response.data);
+        const binLinks: string[] = [];
+        $('a[href$=".bin"]').each((index, element) => {
+            const href = $(element).attr('href') || '';
+            binLinks.push(`https://micropython.org${href}`);
+        });
+        if (binLinks.length === 0) {
+            $('a[href$=".dfu"]').each((index, element) => {
+                const href = $(element).attr('href') || '';
+                binLinks.push(`https://micropython.org${href}`);
+            });
+        }
+        return binLinks.slice(0, 2);
+    } catch (error) {
+        console.error('Error fetching binary links:', error);
+        return [];
+    }
+}
+
+async function downloadFile(url: string, filePath: string): Promise<void> {
+    const response = await axios({
+        url,
+        method: 'GET',
+        responseType: 'stream',
+    });
+
+    const writer = fs.createWriteStream(filePath);
+
+    response.data.pipe(writer);
+
+    return new Promise((resolve, reject) => {
+        writer.on('finish', resolve);
+        writer.on('error', reject);
+    });
+}
+
+async function flashFirmware() {
+    let boards = await fetchBoardLinks();
+    vscode.window.showQuickPick(boards).then((selectedItem) => {
+        if (selectedItem) {
+            vscode.window.showInformationMessage(`You selected: ${selectedItem}`);
+            getBins(selectedItem).then((binLinks) => {
+                vscode.window.showQuickPick(binLinks).then((selectedBin) => {
+                    if (selectedBin) {
+                        vscode.window.showInformationMessage(`You selected: ${selectedBin}`);
+                        downloadFile(selectedBin, binpath).then(() => {
+                            runCommandInMPremTerminal(`${esptool} --port ${input_device} write_flash --flash_mode keep --flash_size keep --erase-all 0x1000 ${binpath}`);
+                        });
+                    }
+                });
+                console.log('Binary links:', binLinks);
+            }).catch((error) => {
+                console.error('Error:', error);
+            });
+        }
+    });
+}
+const execShell = (cmd: string) =>
+    new Promise<string>((resolve, reject) => {
+      cp.exec(cmd, (err, out) => {
+        if (err) {
+          return resolve(cmd+' error!');
+          //or,  reject(err);
+        }
+        return resolve(out);
+      });
+    });
+
 function runCommandInMPremTerminal(command: string) {
     if (!input_device && !auto_device) {
         vscode.commands.executeCommand("device_list.focus");
         vscode.window.showErrorMessage('No device set. Please set a device first.');
         return;
     }
-    if(auto_device) {
-        const cmd_words = command.split(" ");
-        command = command.split(" ").splice(1,2).join(" ");
+    if(!auto_device) {
+        command = command.replace("mpremote", `mpremote connect ${input_device}`);
     }
     // Find the terminal with the specified name
     const mpremTerminal = vscode.window.terminals.find((terminal) => terminal.name === 'mprem');
@@ -108,7 +261,6 @@ function runCommandInMPremTerminal(command: string) {
 }
 
 async function deleteConfirmation(supress = false) {
-    log_files();
     if (!input_device) {
         vscode.commands.executeCommand("device_list.focus");
         vscode.window.showErrorMessage('No device set. Please set a device first.');
@@ -126,11 +278,11 @@ async function deleteConfirmation(supress = false) {
     }
 
     if (userResponse === 'Yes') {
-        const file_lst = parseFileLog();
+        const file_lst = await getFiles();
         file_lst.forEach(file => {
             if (file !== "boot.py") {
-                runCommandInMPremTerminal(`mpremote connect ${input_device} rm ${file.trim()}`);
-                // runCommandInMPremTerminal(`mpremote connect ${input_device} ls`);
+                runCommandInMPremTerminal(`${mpremote} rm ${file.trim()}`);
+                // runCommandInMPremTerminal("mpremote ls");
             }
         });
     } else {
@@ -148,62 +300,36 @@ function getActiveFilePath(only_name = false): string | undefined {
         return f_path;
     }
 }
-function log_files() {
-    const temp_path = path.resolve(os.tmpdir(), ".mprem_log");
-    runCommandInMPremTerminal(`mpremote connect ${input_device} ls > \"${temp_path}\"`);
-    while (!fs.readFileSync(temp_path, "utf-8")) {}
-}
-function log_devices() {
-    const temp_path = path.resolve(os.tmpdir(), ".mprem_devices_log");
-    runindisposeterm(`mpremote connect list >\"${temp_path}\"`);
-    while (!fs.existsSync(temp_path)) {}
-}
-async function runindisposeterm(command: string) {
-    const newTerminal = vscode.window.createTerminal({
-        name: 'Background Task',
-        hideFromUser: true,
-    });
-    newTerminal.sendText(command);
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    newTerminal.dispose();
+
+async function getFiles(myPath=""): Promise<string[]> {
+    if(!myPath){
+        var output = await execShell(auto_device ? `${mpremote} ls` : `${mpremote} connect ${input_device}`);
+    } else {
+        var output = await execShell(`ls ${path.resolve(myPath)}`);
+    } 
+    const content = output.trim();
+    return content.split(seperator);
 }
 
-function detectFileEncodingandRead(filePath: string): string {
-    const buffer = fs.readFileSync(filePath);
-    const result = jschardet.detect(buffer);
-    while(!result.encoding) {}
-    const encoding = result.encoding.toLowerCase();
-    const content = iconv.decode(buffer, encoding);
-    return content;
+async function getDevices(): Promise<string[]> {
+    const output = await execShell(`${mpremote} connect list`);
+    const content = output.trim();
+    return content.split(seperator);
 }
 
-function parseFileLog(): string[] {
-    log_files();
-    const my_path = path.resolve(os.tmpdir(), '.mprem_log');
-    console.log("Waiting for .mprem_log to be created...");
-    while (!fs.existsSync(my_path)) {}
-    console.log("Finished.\nWaiting for .mprem_log to be populated...");
-    while (fs.readFileSync(my_path, 'utf-8') === "") {}
-    const logContentRaw = detectFileEncodingandRead(my_path);
-    const tmp1 = logContentRaw.replace(/^.{13}/gm, '');
-    const tmpList = tmp1.split('\r\n');
-    runindisposeterm(`rm \"${my_path}\"`);
-    console.log("Log deleted");
-    return tmpList.slice(0, -2);
-}
-
-function parseDeviceLog(): string[] {
-    log_devices();
-    const my_path = path.resolve(os.tmpdir(), '.mprem_devices_log');
-    console.log("Waiting for .mprem_devices_log to be created...");
-    while (!fs.existsSync(my_path)) {}
-    console.log("Finished.\nWaiting for .mprem_devices_log to be populated...");
-    while (fs.readFileSync(my_path, 'utf-8') === "") {}
-    console.log("Finished.\nEverything is ready.");
-    const logContentRaw = detectFileEncodingandRead(my_path).trim(); //Remove trim() for empty button
-    runindisposeterm(`rm \"${my_path}\"`);
-    console.log("Log deleted");
-    return logContentRaw.split("\r\n");
+async function copy_file_from(extension:string) {
+    const files = await getFiles();
+    if(!extension) {
+        files.forEach(file => {
+            runCommandInMPremTerminal(`${mpremote} cp :${file.trim()} ./mprem_files/${file.trim()}`);
+        });
+    } else {
+        files.forEach(file => {
+            if (file.endsWith(extension)) {
+                runCommandInMPremTerminal(`${mpremote} cp :${file.trim()} ./mprem_files/${file.trim()}`);
+            }
+        });
+    }
 }
 
 async function sync_device() {
@@ -219,36 +345,24 @@ async function sync_device() {
         { label: 'From', description: '"From" device to local' },
         { label: 'To', description: 'From local "To" device' },
     ];
-
-    runCommandInMPremTerminal(`mkdir ./mprem_files`);
-    const files = parseFileLog();
+    runCommandInMPremTerminal("mkdir ./mprem_files");
+    const files = await getFiles("./mprem_files");
     // Show the quick pick menu
     vscode.window.showQuickPick(options).then((selectedOption) => {
         if (selectedOption) {
             // Handle the selected option
             if (selectedOption.label === "From") {
-                if(!extension) {
-                    files.forEach(file => {
-                        runCommandInMPremTerminal(`mpremote connect ${input_device} cp :${file.trim()} ./mprem_files/${file.trim()}`);
-                    });
-                } else {
-                    files.forEach(file => {
-                        if (file.endsWith(extension)) {
-                            runCommandInMPremTerminal(`mpremote connect ${input_device} cp :${file.trim()} ./mprem_files/${file.trim()}`);
-                        }
-                    });
-                }
-                // runCommandInMPremTerminal(`mpremote connect ${input_device} ls`);
+                copy_file_from(extension);
             } else if (selectedOption.label === "To") {
                 if(!extension) {
                     deleteConfirmation(true);
-                    runCommandInMPremTerminal(`mpremote connect ${input_device} cp -r ./mprem_files/ :`);
-                    runCommandInMPremTerminal(`mpremote connect ${input_device} ls`);
+                    runCommandInMPremTerminal(`${mpremote} cp -r ./mprem_files/ :`);
+                    runCommandInMPremTerminal(`${mpremote} ls`);
                 }
                 else {
                     files.forEach(file => {
                         if (file.endsWith(extension)) {
-                            runCommandInMPremTerminal(`mpremote connect ${input_device} cp :${file.trim()} ./mprem_files/${file.trim()}`);
+                            runCommandInMPremTerminal(`${mpremote} cp :${file.trim()} ./mprem_files/${file.trim()}`);
                         }
                     });
                 }
@@ -277,8 +391,8 @@ class MpremProvider implements vscode.TreeDataProvider<vscode.TreeItem> {
         return undefined;
     }
 
-    private buildTreeItems(): vscode.TreeItem[] {
-        const devices_list = parseDeviceLog();
+    private async buildTreeItems(): Promise<vscode.TreeItem[]> {
+        const devices_list = await getDevices();
         return devices_list.map(device =>
             new MpremDeviceItem(device, device.replace(/(?<=\w) .+/g, "").trim())
         );
@@ -287,7 +401,6 @@ class MpremProvider implements vscode.TreeDataProvider<vscode.TreeItem> {
     readonly onDidChangeTreeData: vscode.Event<vscode.TreeItem | undefined | null | void> = this._onDidChangeTreeData.event;
 
     refresh(): void {
-        log_devices();
         this._onDidChangeTreeData.fire();
     }
 }
