@@ -3,6 +3,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as cp from 'child_process';
+import * as fs from 'fs';
 
 var input_device = "";
 var auto_device = false;
@@ -11,6 +12,40 @@ const seperator = process.platform==="win32" ? "\r\n" : "\n";
 // Your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
 
+    let vpath = path.join(context.extensionPath, 'python');
+    let ppath = path.join(context.extensionPath, 'python', 'Scripts', process.platform==="win32" ? 'python.exe' : 'python3');
+    let esptool = path.join(context.extensionPath, 'python', 'Scripts', process.platform==="win32" ? 'esptool.exe' : 'esptool.py');
+    let mpremote = path.join(context.extensionPath, 'python', 'Scripts', 'mpremote');
+    if (!fs.existsSync(vpath)) {
+        vscode.window.showErrorMessage('Missing, creating python backend');
+        vscode.window.withProgress({
+            location: vscode.ProgressLocation.Notification,
+            title: "mprem",
+            cancellable: false
+        }, async (progress, token) => {
+            progress.report({ message: "Please wait for python backend..." });
+            console.log(vpath, esptool);
+            const terminal = vscode.window.createTerminal('backend');
+            terminal.show();
+            terminal.sendText(`python -m venv ${vpath} && ${ppath} -m pip install esptool mpremote`);
+            const checkFileExists = async (filePath: string) => {
+                return new Promise<boolean>((resolve) => {
+                    fs.access(filePath, fs.constants.F_OK, (err) => {
+                        resolve(!err);
+                    });
+                });
+            };
+            while (!(await checkFileExists(esptool))) {
+                await new Promise(resolve => setTimeout(resolve, 2000));
+            }
+            vscode.window.showInformationMessage('Python backend created');
+        });
+        // vscode.window.showInformationMessage('A restart of Visual Studio Code might be required');
+    }
+    
+
+
+    console.log('Extension "mprem" is now active! Path:', context.extensionPath);
     // Use the console to output diagnostic information (console.log) and errors (console.error)
     // This line of code will only be executed once when your extension is activated
     console.log('Congratulations, your extension "mprem" is now active!');
