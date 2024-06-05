@@ -4,18 +4,29 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import * as cp from 'child_process';
 import * as fs from 'fs';
+import axios from 'axios';
+import * as cheerio from 'cheerio';
 
 var input_device = "";
 var auto_device = false;
 const seperator = process.platform==="win32" ? "\r\n" : "\n";
+let binpath = "";
+let mpremote = "";
+let esptool = "";
+let vpath = "";
+let ppath = "";
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
 
-    let vpath = path.join(context.extensionPath, 'python');
-    let ppath = path.join(context.extensionPath, 'python', 'Scripts', process.platform==="win32" ? 'python.exe' : 'python3');
-    let esptool = path.join(context.extensionPath, 'python', 'Scripts', process.platform==="win32" ? 'esptool.exe' : 'esptool.py');
-    let mpremote = path.join(context.extensionPath, 'python', 'Scripts', 'mpremote');
+    binpath = path.join(context.extensionPath, 'bin', 'firmware.bin');
+    if(!fs.existsSync(path.join(context.extensionPath, 'bin'))) {
+        fs.mkdirSync(path.join(context.extensionPath, 'bin'));
+    }
+    vpath = path.join(context.extensionPath, 'python');
+    ppath = path.join(context.extensionPath, 'python', 'Scripts', process.platform==="win32" ? 'python.exe' : 'python3');
+    esptool = path.join(context.extensionPath, 'python', 'Scripts', process.platform==="win32" ? 'esptool.exe' : 'esptool.py');
+    mpremote = path.join(context.extensionPath, 'python', 'Scripts', 'mpremote');
     if (!fs.existsSync(vpath)) {
         vscode.window.showErrorMessage('Missing, creating python backend');
         vscode.window.withProgress({
@@ -27,7 +38,8 @@ export function activate(context: vscode.ExtensionContext) {
             console.log(vpath, esptool);
             const terminal = vscode.window.createTerminal('backend');
             terminal.show();
-            terminal.sendText(`python -m venv ${vpath} && ${ppath} -m pip install esptool mpremote`);
+            const python = process.platform==="win32" ? "python" : "python3";
+            terminal.sendText(`${python} -m venv ${vpath} && ${ppath} -m pip install esptool mpremote`);
             const checkFileExists = async (filePath: string) => {
                 return new Promise<boolean>((resolve) => {
                     fs.access(filePath, fs.constants.F_OK, (err) => {
@@ -39,8 +51,12 @@ export function activate(context: vscode.ExtensionContext) {
                 await new Promise(resolve => setTimeout(resolve, 2000));
             }
             vscode.window.showInformationMessage('Python backend created');
+            setTimeout(() => {
+                vscode.commands.executeCommand("device_list.refreshEntry");
+            }, 1000);
         });
         // vscode.window.showInformationMessage('A restart of Visual Studio Code might be required');
+        
     }
     
 
@@ -55,8 +71,28 @@ export function activate(context: vscode.ExtensionContext) {
     let clear = vscode.commands.registerCommand('mprem.clear', () => {
         deleteConfirmation();
     });
+    let repair_backend = vscode.commands.registerCommand('mprem.repair', () => {
+        const deleteFolderRecursive = (folderPath: string) => {
+            if (fs.existsSync(folderPath)) {
+                fs.readdirSync(folderPath).forEach((file) => {
+                    const curPath = `${folderPath}/${file}`;
+                    if (fs.lstatSync(curPath).isDirectory()) { // recurse
+                        deleteFolderRecursive(curPath);
+                    } else { // delete file
+                        fs.unlinkSync(curPath);
+                    }
+                });
+                fs.rmdirSync(folderPath);
+            }
+        };
+        deleteFolderRecursive(vpath);
+        vscode.window.showInformationMessage('Please restart Visual Studio Code');
+    });
     let override_device = vscode.commands.registerCommand('mprem.override', () => {
         auto_device = !auto_device;
+    });
+    let flash = vscode.commands.registerCommand('mprem.flash', () => {
+        flashFirmware();
     });
     let sync = vscode.commands.registerCommand('mprem.sync', () => {
         sync_device();
@@ -73,7 +109,7 @@ export function activate(context: vscode.ExtensionContext) {
         const activeFilePath = getActiveFilePath();
         // const activeFileName = getActiveFilePath(true);
         if (activeFilePath) {
-            runCommandInMPremTerminal(`mpremote run \"${activeFilePath}\"`);
+            runCommandInMPremTerminal(`${mpremote} run \"${activeFilePath}\"`);
         } else {
             vscode.window.showErrorMessage('No active file.');
         }
@@ -81,20 +117,20 @@ export function activate(context: vscode.ExtensionContext) {
     let save = vscode.commands.registerCommand('mprem.save', () => {
         const activeFilePath = getActiveFilePath();
         if (activeFilePath) {
-            runCommandInMPremTerminal(`mpremote cp \"${activeFilePath}\" :.`);
+            runCommandInMPremTerminal(`${mpremote} cp \"${activeFilePath}\" :.`);
         } else {
             vscode.window.showErrorMessage('No active file.');
         }
     });
     let mount = vscode.commands.registerCommand('mprem.mount', () => {
         runCommandInMPremTerminal("mkdir ./remote");
-        runCommandInMPremTerminal("mpremote mount ./remote");
+        runCommandInMPremTerminal(`${mpremote} mount ./remote`);
     });
     let soft_reset = vscode.commands.registerCommand('mprem.soft_reset', () => {
-        runCommandInMPremTerminal("mpremote soft-reset");
+        runCommandInMPremTerminal(`${mpremote} soft-reset`);
     });
     let hard_reset = vscode.commands.registerCommand('mprem.hard_reset', () => {
-        runCommandInMPremTerminal("mpremote reset");
+        runCommandInMPremTerminal(`${mpremote} reset`);
     });
 
     context.subscriptions.push(clear);
@@ -112,6 +148,85 @@ export function activate(context: vscode.ExtensionContext) {
 // This method is called when your extension is deactivated
 export function deactivate() { }
 
+const fetchBoardLinks = async () => {
+    try {
+        const response = await axios.get('https://micropython.org/download/');
+        const $ = cheerio.load(response.data);
+        const cards = $('.board-card');
+        const boards: string[] = [];
+        cards.each((index, element) => {
+            const href = $(element).attr('href');
+            if (href) {
+                boards.push(href);
+            }
+        });
+        return boards;
+    } catch (error) {
+        console.error('Error fetching board links:', error);
+        return [];
+    }
+};
+
+async function getBins(boardCode: string): Promise<string[]> {
+    try {
+        const response = await axios.get(`https://micropython.org/download/${boardCode}`);
+        const $ = cheerio.load(response.data);
+        const binLinks: string[] = [];
+        $('a[href$=".bin"]').each((index, element) => {
+            const href = $(element).attr('href') || '';
+            binLinks.push(`https://micropython.org${href}`);
+        });
+        if (binLinks.length === 0) {
+            $('a[href$=".dfu"]').each((index, element) => {
+                const href = $(element).attr('href') || '';
+                binLinks.push(`https://micropython.org${href}`);
+            });
+        }
+        return binLinks.slice(0, 2);
+    } catch (error) {
+        console.error('Error fetching binary links:', error);
+        return [];
+    }
+}
+
+async function downloadFile(url: string, filePath: string): Promise<void> {
+    const response = await axios({
+        url,
+        method: 'GET',
+        responseType: 'stream',
+    });
+
+    const writer = fs.createWriteStream(filePath);
+
+    response.data.pipe(writer);
+
+    return new Promise((resolve, reject) => {
+        writer.on('finish', resolve);
+        writer.on('error', reject);
+    });
+}
+
+async function flashFirmware() {
+    let boards = await fetchBoardLinks();
+    vscode.window.showQuickPick(boards).then((selectedItem) => {
+        if (selectedItem) {
+            vscode.window.showInformationMessage(`You selected: ${selectedItem}`);
+            getBins(selectedItem).then((binLinks) => {
+                vscode.window.showQuickPick(binLinks).then((selectedBin) => {
+                    if (selectedBin) {
+                        vscode.window.showInformationMessage(`You selected: ${selectedBin}`);
+                        downloadFile(selectedBin, binpath).then(() => {
+                            runCommandInMPremTerminal(`${esptool} --port ${input_device} write_flash --flash_mode keep --flash_size keep --erase-all 0x1000 ${binpath}`);
+                        });
+                    }
+                });
+                console.log('Binary links:', binLinks);
+            }).catch((error) => {
+                console.error('Error:', error);
+            });
+        }
+    });
+}
 const execShell = (cmd: string) =>
     new Promise<string>((resolve, reject) => {
       cp.exec(cmd, (err, out) => {
@@ -166,7 +281,7 @@ async function deleteConfirmation(supress = false) {
         const file_lst = await getFiles();
         file_lst.forEach(file => {
             if (file !== "boot.py") {
-                runCommandInMPremTerminal(`mpremote rm ${file.trim()}`);
+                runCommandInMPremTerminal(`${mpremote} rm ${file.trim()}`);
                 // runCommandInMPremTerminal("mpremote ls");
             }
         });
@@ -188,7 +303,7 @@ function getActiveFilePath(only_name = false): string | undefined {
 
 async function getFiles(myPath=""): Promise<string[]> {
     if(!myPath){
-        var output = await execShell(auto_device ? "mpremote ls" : `mpremote connect ${input_device}`);
+        var output = await execShell(auto_device ? `${mpremote} ls` : `${mpremote} connect ${input_device}`);
     } else {
         var output = await execShell(`ls ${path.resolve(myPath)}`);
     } 
@@ -197,7 +312,7 @@ async function getFiles(myPath=""): Promise<string[]> {
 }
 
 async function getDevices(): Promise<string[]> {
-    const output = await execShell("mpremote connect list");
+    const output = await execShell(`${mpremote} connect list`);
     const content = output.trim();
     return content.split(seperator);
 }
@@ -206,12 +321,12 @@ async function copy_file_from(extension:string) {
     const files = await getFiles();
     if(!extension) {
         files.forEach(file => {
-            runCommandInMPremTerminal(`mpremote cp :${file.trim()} ./mprem_files/${file.trim()}`);
+            runCommandInMPremTerminal(`${mpremote} cp :${file.trim()} ./mprem_files/${file.trim()}`);
         });
     } else {
         files.forEach(file => {
             if (file.endsWith(extension)) {
-                runCommandInMPremTerminal(`mpremote cp :${file.trim()} ./mprem_files/${file.trim()}`);
+                runCommandInMPremTerminal(`${mpremote} cp :${file.trim()} ./mprem_files/${file.trim()}`);
             }
         });
     }
@@ -241,13 +356,13 @@ async function sync_device() {
             } else if (selectedOption.label === "To") {
                 if(!extension) {
                     deleteConfirmation(true);
-                    runCommandInMPremTerminal("mpremote cp -r ./mprem_files/ :");
-                    runCommandInMPremTerminal("mpremote ls");
+                    runCommandInMPremTerminal(`${mpremote} cp -r ./mprem_files/ :`);
+                    runCommandInMPremTerminal(`${mpremote} ls`);
                 }
                 else {
                     files.forEach(file => {
                         if (file.endsWith(extension)) {
-                            runCommandInMPremTerminal(`mpremote cp :${file.trim()} ./mprem_files/${file.trim()}`);
+                            runCommandInMPremTerminal(`${mpremote} cp :${file.trim()} ./mprem_files/${file.trim()}`);
                         }
                     });
                 }
