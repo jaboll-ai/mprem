@@ -8,7 +8,7 @@
   "publisher": "jaboll",
   "icon": "resources/mprem_logo.png",
   "description": "Micropython micro controller - Flash firmware and File Handling",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "engines": {
     "vscode": "^1.84.0"
   },
