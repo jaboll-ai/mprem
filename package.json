@@ -7,8 +7,8 @@
   },
   "publisher": "jaboll",
   "icon": "resources/mprem_logo.png",
-  "description": "A mpremote wrapper",
-  "version": "0.2.0",
+  "description": "Micropython micro controller - Flash firmware and File Handling",
+  "version": "0.3.0",
   "engines": {
     "vscode": "^1.84.0"
   },
@@ -20,49 +20,71 @@
   "contributes": {
     "commands": [
       {
+        "command": "mprem.test",
+        "title": "test",
+        "category": "mprem"
+      },
+      {
         "command": "mprem.clear",
-        "title": "mprem Clear: Cleares all files from device"
+        "title": "Clear all files from device",
+        "category": "mprem"
       },
       {
         "command": "mprem.sync",
-        "title": "mprem Sync: Sync all the files to/from device"
+        "title": "Sync all the files to/from device",
+        "category": "mprem"
       },
       {
         "command": "mprem.run",
-        "title": "mprem Run: Run current file in RAM"
+        "title": "Run current file in RAM",
+        "icon": "resources/play.svg",
+        "category": "mprem"
+      },
+      {
+        "command": "mprem.stop",
+        "title": "Stop current execution",
+        "icon": "$(debug-stop)",
+        "category": "mprem"
       },
       {
         "command": "mprem.save",
-        "title": "mprem Save: Save current file to device"
+        "title": "Save current file to device",
+        "category": "mprem"
       },
       {
         "command": "mprem.mount",
-        "title": "mprem Mount: Mounts local files to device as (as /remote)"
+        "title": "Mount local files to device as (as /remote)",
+        "category": "mprem"
       },
       {
         "command": "mprem.soft_reset",
-        "title": "mprem Soft-Reset: Soft-Reset device"
+        "title": "Soft-Reset device",
+        "category": "mprem"
       },
       {
         "command": "mprem.hard_reset",
-        "title": "mprem Hard-Reset: Reset device"
+        "title": "Reset device",
+        "category": "mprem"
       },
       {
         "command": "mprem.override_device",
-        "title": "[DEV] mprem Override (toggle)"
+        "title": "[DEV] Override need for device selection (toggle)",
+        "category": "mprem"
       },
       {
         "command": "mprem.repair",
-        "title": "[DEV] mprem repair backend"
+        "title": "[DEV] repair backend",
+        "category": "mprem"
       },
       {
         "command": "mprem.flash",
-        "title": "mprem flash esp-firmware"
+        "title": "flash esp-firmware",
+        "category": "mprem"
       },
       {
         "command": "device_list.refreshEntry",
         "title": "Refresh",
-        "icon": "resources/refresh.svg"
+        "icon": "$(refresh)"
       }
     ],
     "viewsContainers": {
@@ -89,8 +111,38 @@
           "when": "view == device_list",
           "group": "navigation"
         }
+      ],
+      "editor/title": [
+        {
+          "when": "config.mprem.showMicroRun && editorLangId == 'python'",
+          "command": "mprem.run",
+          "group": "navigation"
+        },
+        {
+          "when": "config.mprem.showMicroStop && editorLangId == 'python'",
+          "command": "mprem.stop",
+          "group": "navigation"
+        }
       ]
+    },
+  "configuration": {
+    "type": "object",
+    "title": "mprem config",
+    "properties": {
+      "mprem.showMicroRun": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether to show 'Micro Code' icon in editor title menu.",
+          "scope": "resource"
+        },
+        "mprem.showMicroStop": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether to show 'Stop micro code' icon in the editor title menu when code is running.",
+          "scope": "resource"
+        }
     }
+  }
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",

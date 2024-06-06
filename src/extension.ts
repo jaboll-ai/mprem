@@ -7,9 +7,10 @@ import * as fs from 'fs';
 import axios from 'axios';
 import * as cheerio from 'cheerio';
 
+const seperator = process.platform==="win32" ? "\r\n" : "\n";
+const python = process.platform==="win32" ? "python" : "python3";
 var input_device = "";
 var auto_device = false;
-const seperator = process.platform==="win32" ? "\r\n" : "\n";
 let binpath = "";
 let mpremote = "";
 let esptool = "";
@@ -29,6 +30,14 @@ export function activate(context: vscode.ExtensionContext) {
     ppath = path.join(context.extensionPath, 'python', 'Scripts', process.platform==="win32" ? 'python.exe' : 'python3');
     esptool = path.join(context.extensionPath, 'python', 'Scripts', process.platform==="win32" ? 'esptool.exe' : 'esptool.py');
     mpremote = path.join(context.extensionPath, 'python', 'Scripts', 'mpremote');
+    execShell(`${python} -V`)
+        .then(data => {
+            vscode.window.showInformationMessage(`${data} installed`);
+        })
+        .catch(error => {
+            vscode.window.showErrorMessage("Python not properly installed, please install and reload window");
+            vscode.env.openExternal(vscode.Uri.parse('https://www.python.org/downloads/'));
+        });
     if (!fs.existsSync(vpath)) {
         vscode.window.showErrorMessage('Missing, creating python backend');
         vscode.window.withProgress({
@@ -39,7 +48,6 @@ export function activate(context: vscode.ExtensionContext) {
             progress.report({ message: "Please wait for python backend..." });
             const terminal = vscode.window.createTerminal('backend');
             terminal.show();
-            const python = process.platform==="win32" ? "python" : "python3";
             terminal.sendText(`${python} -m venv ${vpath} && ${ppath} -m pip install --upgrade pip && ${ppath} -m pip install esptool mpremote`);
             const checkFileExists = async (filePath: string) => {
                 return new Promise<boolean>((resolve) => {
@@ -86,6 +94,13 @@ export function activate(context: vscode.ExtensionContext) {
     });
     let override_device = vscode.commands.registerCommand('mprem.override', () => {
         auto_device = !auto_device;
+    });
+
+    let test = vscode.commands.registerCommand('mprem.test', () => {
+        runCommandInMPremTerminal('\x03');
+    });
+    let stop = vscode.commands.registerCommand('mprem.stop', () => {
+        runCommandInMPremTerminal('\x03');
     });
     let flash = vscode.commands.registerCommand('mprem.flash', () => {
         flashFirmware();
@@ -136,6 +151,7 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(override_device);
     context.subscriptions.push(flash);
     context.subscriptions.push(repair_backend);
+    context.subscriptions.push(stop);
     let device_list = new MpremDevices(context, new MpremProvider());
 }
 
@@ -238,8 +254,8 @@ const execShell = (cmd: string) =>
     new Promise<string>((resolve, reject) => {
       cp.exec(cmd, (err, out) => {
         if (err) {
-          return resolve(cmd+' error!');
-          //or,  reject(err);
+        //   return resolve(cmd+' error!');
+          return reject(err);
         }
         return resolve(out);
       });
@@ -496,3 +512,4 @@ class MpremDevices {
     }
 
 }
+
