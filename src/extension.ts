@@ -21,19 +21,17 @@ let walker = "";
 // Your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
 
+    const scriptpath = path.join(context.extensionPath, 'python', process.platform==="win32" ? 'Scripts' : 'bin');
     binpath = path.join(context.extensionPath, 'bin', 'firmware.bin');
-    walker = path.join(context.extensionPath, 'python', 'Scripts', 'walker.py');
+    walker = path.join(scriptpath, 'walker.py');
     if(!fs.existsSync(path.join(context.extensionPath, 'bin'))) {
         fs.mkdirSync(path.join(context.extensionPath, 'bin'));
     }
     vpath = path.join(context.extensionPath, 'python');
-    ppath = path.join(context.extensionPath, 'python', 'Scripts', process.platform==="win32" ? 'python.exe' : 'python3');
-    esptool = path.join(context.extensionPath, 'python', 'Scripts', process.platform==="win32" ? 'esptool.exe' : 'esptool.py');
-    mpremote = path.join(context.extensionPath, 'python', 'Scripts', 'mpremote');
+    ppath = path.join(scriptpath, process.platform==="win32" ? 'python.exe' : 'python3');
+    esptool = path.join(scriptpath, process.platform==="win32" ? 'esptool.exe' : 'esptool.py');
+    mpremote = path.join(scriptpath, 'mpremote');
     execShell(`${python} -V`)
-        .then(data => {
-            vscode.window.showInformationMessage(`${data} installed`);
-        })
         .catch(error => {
             vscode.window.showErrorMessage("Python not properly installed, please install and reload window");
             vscode.env.openExternal(vscode.Uri.parse('https://www.python.org/downloads/'));
@@ -45,7 +43,7 @@ export function activate(context: vscode.ExtensionContext) {
             title: "mprem",
             cancellable: false
         }, async (progress, token) => {
-            progress.report({ message: "Please wait for python backend..." });
+            progress.report({ message: "Initializing tools..." });
             const terminal = vscode.window.createTerminal('backend');
             terminal.show();
             terminal.sendText(`${python} -m venv ${vpath} && ${ppath} -m pip install --upgrade pip && ${ppath} -m pip install esptool mpremote`);
@@ -72,6 +70,7 @@ export function activate(context: vscode.ExtensionContext) {
         downloadFile('https://raw.githubusercontent.com/YolloPlays/mprem/main/backend/walker.py', walker);
     }
 
+    // #### COMMANDS ####
     let clear = vscode.commands.registerCommand('mprem.clear', () => {
         deleteConfirmation();
     });
@@ -509,6 +508,11 @@ class MpremDevices {
         const devicePort = device.getPort();
         input_device = devicePort;
         vscode.window.showInformationMessage(`Selected device is on port: ${devicePort}`);
+        execShell(`${mpremote} connect ${input_device} df`).then(res =>
+            vscode.commands.executeCommand('setContext', 'mprem.connected', true)
+        ).catch(err => 
+            vscode.commands.executeCommand('setContext', 'mprem.connected', false)
+        );
     }
 
 }
