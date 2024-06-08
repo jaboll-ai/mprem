@@ -1,3 +1,7 @@
+### 0.3.2
+- fixed mac python paths
+
+
 ### 0.3.1
 - fixed accidental bundeling
 

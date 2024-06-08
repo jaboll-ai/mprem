@@ -114,12 +114,12 @@
       ],
       "editor/title": [
         {
-          "when": "config.mprem.showMicroRun && editorLangId == 'python'",
+          "when": "config.mprem.showMicroRun && editorLangId == 'python' && mprem.connected",
           "command": "mprem.run",
           "group": "navigation"
         },
         {
-          "when": "config.mprem.showMicroStop && editorLangId == 'python'",
+          "when": "config.mprem.showMicroStop && editorLangId == 'python' && mprem.connected",
           "command": "mprem.stop",
           "group": "navigation"
         }
