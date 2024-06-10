@@ -318,7 +318,6 @@ async function flashFirmware() {
                 vscode.window.showQuickPick(binLinks).then((selectedBin) => {
                     if (selectedBin) {
                         downloadFile(selectedBin, binpath).then(() => {
-                            console.log(`${esptool} --port ${input_device} write_flash --flash_mode keep --flash_size keep --erase-all 0x1000 ${binpath}`);
                             const child = cp.spawn(`${esptool} --port ${input_device} write_flash --flash_mode keep --flash_size keep --erase-all 0x1000 ${binpath}`, [], { shell: true });
                             outputChannel.show();
                             child.stdout.on('data', (data) => {
