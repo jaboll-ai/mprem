@@ -20,11 +20,6 @@
   "contributes": {
     "commands": [
       {
-        "command": "mprem.test",
-        "title": "test",
-        "category": "mprem"
-      },
-      {
         "command": "mprem.clear",
         "title": "Clear all files from device",
         "category": "mprem"

@@ -13,8 +13,5 @@ clears the micro-controller and more...
 ![Show command list](resources/commands.png)
 
 ### FYI:
-- All of this can be done with mpremote only
-
-- Also take a look at: (https://github.com/Josverl/micropython-stubber)
-
+- All of this can be done with mpremote and esptool only
 - For beginners: (https://thonny.org/)
