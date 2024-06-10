@@ -73,12 +73,12 @@
       },
       {
         "command": "mprem.flash",
-        "title": "flash esp-firmware",
+        "title": "Flash esp-firmware",
         "category": "mprem"
       },
       {
         "command": "mprem.set_environment",
-        "title": "set to custom micropython environment (toggle)",
+        "title": "Set to custom micropython environment (toggle)",
         "category": "mprem"
       },
       {
