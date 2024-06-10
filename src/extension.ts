@@ -17,6 +17,7 @@ let esptool = "";
 let vpath = "";
 let ppath = "";
 let walker = "";
+let spawn: cp.ChildProcessWithoutNullStreams;
 let customInterpreter = false;
 let outputChannel: vscode.OutputChannel;
 // This method is called when your extension is activated
@@ -101,7 +102,7 @@ export function activate(context: vscode.ExtensionContext) {
     });
     let install_stubs = vscode.commands.registerCommand('mprem.install_stubs', () => {
         installStubs();
-    })
+    });
     let test = vscode.commands.registerCommand('mprem.test', () => {
         runCommandInMPremTerminal('\x03');
     });
@@ -121,7 +122,8 @@ export function activate(context: vscode.ExtensionContext) {
         const activeFilePath = getActiveFilePath();
         // const activeFileName = getActiveFilePath(true);
         if (activeFilePath) {
-            runCommandInMPremTerminal(`${mpremote} run \"${activeFilePath}\"`);
+            // runCommandInMPremTerminal(`${mpremote} run \"${activeFilePath}\"`);
+            runCommandInMPremTerminal(`python \"${activeFilePath}\"`);
         } else {
             vscode.window.showErrorMessage('No active file.');
         }
@@ -183,9 +185,9 @@ export async function deactivate() {
  async function installStubs() {
     let options = await fetchStubNames();
     let selection = await vscode.window.showQuickPick(options);
-    if (typeof selection == 'string') {
+    if (typeof selection === 'string') {
         let v = await vscode.window.showInputBox({ prompt: "Enter version" });
-        if (typeof v == 'string') {
+        if (typeof v === 'string') {
             let version = v ? "=="+v : '';
             vscode.window.withProgress({
                 location: vscode.ProgressLocation.Notification,
@@ -321,10 +323,8 @@ async function flashFirmware() {
                 vscode.window.showQuickPick(binLinks).then((selectedBin) => {
                     if (selectedBin) {
                         downloadFile(selectedBin, binpath).then(() => {
-                            console.log(`${esptool} --port ${input_device} write_flash --flash_mode keep --flash_size keep --erase-all 0x1000 ${binpath}`)
+                            console.log(`${esptool} --port ${input_device} write_flash --flash_mode keep --flash_size keep --erase-all 0x1000 ${binpath}`);
                             const child = cp.spawn(`${esptool} --port ${input_device} write_flash --flash_mode keep --flash_size keep --erase-all 0x1000 ${binpath}`, [], { shell: true });
-                            child.stdout.setEncoding('utf-8');
-                            child.stderr.setEncoding('utf-8');
                             outputChannel.show();
                             child.stdout.on('data', (data) => {
                                 outputChannel.append(`${data}`);
@@ -366,16 +366,21 @@ function runCommandInMPremTerminal(command: string) {
         command = command.replace("mpremote", `mpremote connect ${input_device}`);
     }
     // Find the terminal with the specified name
-    const mpremTerminal = vscode.window.terminals.find((terminal) => terminal.name === 'mprem');
-
-    if (mpremTerminal) {
-        // If the terminal exists, use it
-        mpremTerminal.sendText(command);
-    } else {
-        // If the terminal does not exist, create a new one
-        const newTerminal = vscode.window.createTerminal('mprem');
-        newTerminal.sendText(command);
+    if(!spawn){
+        spawn = cp.spawn(`${mpremote} ${command}`, [], { shell : true });
     }
+    outputChannel.show();
+    spawn.stdout.on('data', (data) => {
+        outputChannel.append(`${data}`);
+    });
+    spawn.stderr.on('data', (data) => {
+        outputChannel.append(`${data}`);
+        spawn.kill();
+    });
+    spawn.on('close', (code) => {
+        spawn.kill();
+    });
+
 }
 
 async function deleteConfirmation(supress = false) {
