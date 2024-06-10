@@ -1,5 +1,6 @@
 ### 0.3.2
 - fixed mac python paths
+- QOL changes
 
 
 ### 0.3.1

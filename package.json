@@ -8,7 +8,7 @@
   "publisher": "jaboll",
   "icon": "resources/mprem_logo.png",
   "description": "Micropython micro controller - Flash firmware and File Handling",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "engines": {
     "vscode": "^1.84.0"
   },
@@ -79,6 +79,16 @@
       {
         "command": "mprem.flash",
         "title": "flash esp-firmware",
+        "category": "mprem"
+      },
+      {
+        "command": "mprem.set_environment",
+        "title": "set to custom micropython environment (toggle)",
+        "category": "mprem"
+      },
+      {
+        "command": "mprem.install_stubs",
+        "title": "Install micropython stubber (set to custom env to see)",
         "category": "mprem"
       },
       {

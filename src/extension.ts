@@ -17,9 +17,13 @@ let esptool = "";
 let vpath = "";
 let ppath = "";
 let walker = "";
+let customInterpreter = false;
+let outputChannel: vscode.OutputChannel;
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
+
+    outputChannel = vscode.window.createOutputChannel('mprem');
 
     const scriptpath = path.join(context.extensionPath, 'python', process.platform==="win32" ? 'Scripts' : 'bin');
     binpath = path.join(context.extensionPath, 'bin', 'firmware.bin');
@@ -46,7 +50,7 @@ export function activate(context: vscode.ExtensionContext) {
             progress.report({ message: "Initializing tools..." });
             const terminal = vscode.window.createTerminal('backend');
             terminal.show();
-            terminal.sendText(`${python} -m venv ${vpath} && ${ppath} -m pip install --upgrade pip && ${ppath} -m pip install esptool mpremote`);
+            terminal.sendText(`${python} -m venv ${vpath} && ${ppath} -m pip install --upgrade pip && ${ppath} -m pip install esptool mpremote pip-search`);
             const checkFileExists = async (filePath: string) => {
                 return new Promise<boolean>((resolve) => {
                     fs.access(filePath, fs.constants.F_OK, (err) => {
@@ -69,6 +73,7 @@ export function activate(context: vscode.ExtensionContext) {
     if (!fs.existsSync(walker)) {
         downloadFile('https://raw.githubusercontent.com/YolloPlays/mprem/main/backend/walker.py', walker);
     }
+    
 
     // #### COMMANDS ####
     let clear = vscode.commands.registerCommand('mprem.clear', () => {
@@ -94,7 +99,9 @@ export function activate(context: vscode.ExtensionContext) {
     let override_device = vscode.commands.registerCommand('mprem.override', () => {
         auto_device = !auto_device;
     });
-
+    let install_stubs = vscode.commands.registerCommand('mprem.install_stubs', () => {
+        installStubs();
+    })
     let test = vscode.commands.registerCommand('mprem.test', () => {
         runCommandInMPremTerminal('\x03');
     });
@@ -139,6 +146,9 @@ export function activate(context: vscode.ExtensionContext) {
     let hard_reset = vscode.commands.registerCommand('mprem.hard_reset', () => {
         runCommandInMPremTerminal(`${mpremote} reset`);
     });
+    let set_environment = vscode.commands.registerCommand('mprem.set_environment', () => {
+        setPythonInterpreter();
+    });
 
     context.subscriptions.push(clear);
     context.subscriptions.push(sync);
@@ -151,11 +161,93 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(flash);
     context.subscriptions.push(repair_backend);
     context.subscriptions.push(stop);
+    context.subscriptions.push(set_environment);
+    context.subscriptions.push(install_stubs);
     let device_list = new MpremDevices(context, new MpremProvider());
 }
 
 // This method is called when your extension is deactivated
-export function deactivate() { }
+export async function deactivate() {
+    const pythonExtension = vscode.extensions.getExtension('ms-python.python');
+    if (pythonExtension) {
+        if (!pythonExtension.isActive) {
+            pythonExtension.activate();
+        }
+        const config = vscode.workspace.getConfiguration('python');
+        const pythonAPI = pythonExtension.exports;
+        pythonAPI.environments.updateActiveEnvironmentPath(config.get('defaultInterpreterPath'));
+        config.update('analysis.diagnosticSeverityOverrides', undefined, vscode.ConfigurationTarget.Workspace);
+    }
+ }
+
+ async function installStubs() {
+    let options = await fetchStubNames();
+    let selection = await vscode.window.showQuickPick(options);
+    if (typeof selection == 'string') {
+        let v = await vscode.window.showInputBox({ prompt: "Enter version" });
+        if (typeof v == 'string') {
+            let version = v ? "=="+v : '';
+            vscode.window.withProgress({
+                location: vscode.ProgressLocation.Notification,
+                title: "mprem",
+                cancellable: true
+            }, async (progress, token) => {
+                progress.report({ message: "Installing stubs..." });
+                await execShell(`${ppath} -m pip install ${selection}${version}`);
+            });
+        }
+    }
+ }
+
+async function setPythonInterpreter() {
+    const pythonExtension = vscode.extensions.getExtension('ms-python.python');
+    if (pythonExtension) {
+        if (!customInterpreter) {
+            if (!pythonExtension.isActive) {
+                await pythonExtension.activate();
+            }
+            const config = vscode.workspace.getConfiguration('python');
+            const pythonAPI = pythonExtension.exports;
+            pythonAPI.environments.updateActiveEnvironmentPath(ppath);
+            await config.update('analysis.diagnosticSeverityOverrides', { "reportMissingModuleSource": "none"}, vscode.ConfigurationTarget.Workspace);
+            customInterpreter = true;
+        } else {
+            deactivate();
+            customInterpreter = false;
+        }
+    } else {
+        vscode.window.showErrorMessage('Python extension not found');
+    }
+}
+
+async function fetchStubNames(): Promise<string[]> {
+    try {
+        const response = await axios.get('https://micropython-stubs.readthedocs.io/en/main/packages.html');
+        const $ = cheerio.load(response.data);
+        const links = $('ul.simple');
+        const imgFileNames: string[] = [];
+
+        links.each((index, element) => {
+            const li = $(element).find('li').first();
+            if (li.length) {
+                const img = li.find('img').first();
+                if (img.length) {
+                    const imgSrc = img.attr('src');
+                    if (imgSrc) {
+                        const imgFileName = imgSrc.split("?")[0].split("/").pop();
+                        if (imgFileName) {
+                            imgFileNames.push(imgFileName);
+                        }
+                    }
+                }
+            }
+        });
+        return imgFileNames;
+    } catch (error) {
+        console.error('Error fetching data:', error);
+        return [];
+    }
+}
 
 const fetchBoardLinks = async () => {
     try {
@@ -221,28 +313,32 @@ async function flashFirmware() {
         vscode.window.showErrorMessage('No device set. Please set a device first.');
         return;
     }
+    outputChannel.clear();
     let boards = await fetchBoardLinks();
     vscode.window.showQuickPick(boards).then((selectedItem) => {
         if (selectedItem) {
-            vscode.window.showInformationMessage(`You selected: ${selectedItem}`);
             getBins(selectedItem).then((binLinks) => {
                 vscode.window.showQuickPick(binLinks).then((selectedBin) => {
                     if (selectedBin) {
-                        vscode.window.showInformationMessage(`You selected: ${selectedBin}`);
                         downloadFile(selectedBin, binpath).then(() => {
-                            runCommandInMPremTerminal(`${esptool} --port ${input_device} write_flash --flash_mode keep --flash_size keep --erase-all 0x1000 ${binpath}`);
-                        });
-                        vscode.window.withProgress({
-                            location: vscode.ProgressLocation.Notification,
-                            title: "Flashing firmware",
-                            cancellable: true
-                        }, async (progress, token) => {
-                            progress.report({ message: "Please wait (appr. 2 min)..." });
-                            await new Promise(resolve => setTimeout(resolve, 115000));
+                            console.log(`${esptool} --port ${input_device} write_flash --flash_mode keep --flash_size keep --erase-all 0x1000 ${binpath}`)
+                            const child = cp.spawn(`${esptool} --port ${input_device} write_flash --flash_mode keep --flash_size keep --erase-all 0x1000 ${binpath}`, [], { shell: true });
+                            child.stdout.setEncoding('utf-8');
+                            child.stderr.setEncoding('utf-8');
+                            outputChannel.show();
+                            child.stdout.on('data', (data) => {
+                                outputChannel.append(`${data}`);
+                            });
+                            child.stderr.on('data', (data) => {
+                                outputChannel.append(`${data}`);
+                                child.kill();
+                            });
+                            child.on('close', (code) => {
+                                child.kill();
+                            });
                         });
                     }
                 });
-                console.log('Binary links:', binLinks);
             }).catch((error) => {
                 console.error('Error:', error);
             });
@@ -361,7 +457,6 @@ async function getDevices(): Promise<string[]> {
 
 async function copy_file_from(extension:string) {
     const files = await getFiles();
-    console.log(path.join(getCurrentWorkspaceFolderPath(), 'mprem_files'));
     files.forEach(file => {
         if (file.includes('.') && (!extension || file.endsWith(extension))) {
             createFolders(path.join(getCurrentWorkspaceFolderPath(), 'mprem_files', file), false);
@@ -507,7 +602,7 @@ class MpremDevices {
     select_device(device: MpremDeviceItem) {
         const devicePort = device.getPort();
         input_device = devicePort;
-        vscode.window.showInformationMessage(`Selected device is on port: ${devicePort}`);
+        // vscode.window.showInformationMessage(`Selected device is on port: ${devicePort}`);
         execShell(`${mpremote} connect ${input_device} df`).then(res =>
             vscode.commands.executeCommand('setContext', 'mprem.connected', true)
         ).catch(err => 
