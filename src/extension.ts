@@ -102,9 +102,6 @@ export function activate(context: vscode.ExtensionContext) {
     let install_stubs = vscode.commands.registerCommand('mprem.install_stubs', () => {
         installStubs();
     });
-    let test = vscode.commands.registerCommand('mprem.test', () => {
-        runCommandInMPremTerminal('\x03');
-    });
     let stop = vscode.commands.registerCommand('mprem.stop', () => {
         runCommandInMPremTerminal('\x03');
     });
@@ -323,8 +320,6 @@ async function flashFirmware() {
                         downloadFile(selectedBin, binpath).then(() => {
                             console.log(`${esptool} --port ${input_device} write_flash --flash_mode keep --flash_size keep --erase-all 0x1000 ${binpath}`);
                             const child = cp.spawn(`${esptool} --port ${input_device} write_flash --flash_mode keep --flash_size keep --erase-all 0x1000 ${binpath}`, [], { shell: true });
-                            child.stdout.setEncoding('utf-8');
-                            child.stderr.setEncoding('utf-8');
                             outputChannel.show();
                             child.stdout.on('data', (data) => {
                                 outputChannel.append(`${data}`);
