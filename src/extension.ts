@@ -51,7 +51,7 @@ export function activate(context: vscode.ExtensionContext) {
             progress.report({ message: "Initializing tools..." });
             const terminal = vscode.window.createTerminal('backend');
             terminal.show();
-            terminal.sendText(`${python} -m venv ${vpath} && ${ppath} -m pip install --upgrade pip && ${ppath} -m pip install esptool mpremote pip-search`);
+            terminal.sendText(`${python} -m venv ${vpath} && ${ppath} -m pip install --upgrade pip && ${ppath} -m pip install esptool mpremote`);
             const checkFileExists = async (filePath: string) => {
                 return new Promise<boolean>((resolve) => {
                     fs.access(filePath, fs.constants.F_OK, (err) => {
@@ -107,7 +107,7 @@ export function activate(context: vscode.ExtensionContext) {
         runCommandInMPremTerminal('\x03');
     });
     let stop = vscode.commands.registerCommand('mprem.stop', () => {
-        runCommandInMPremTerminal('\x03');
+        spawn.kill();
     });
     let flash = vscode.commands.registerCommand('mprem.flash', () => {
         flashFirmware();
@@ -123,7 +123,7 @@ export function activate(context: vscode.ExtensionContext) {
         // const activeFileName = getActiveFilePath(true);
         if (activeFilePath) {
             // runCommandInMPremTerminal(`${mpremote} run \"${activeFilePath}\"`);
-            runCommandInMPremTerminal(`python \"${activeFilePath}\"`);
+            runCommandInMPremTerminal(`${mpremote} run \"${activeFilePath}\"`);
         } else {
             vscode.window.showErrorMessage('No active file.');
         }
@@ -365,10 +365,9 @@ function runCommandInMPremTerminal(command: string) {
     if(!auto_device) {
         command = command.replace("mpremote", `mpremote connect ${input_device}`);
     }
-    // Find the terminal with the specified name
-    if(!spawn){
-        spawn = cp.spawn(`${mpremote} ${command}`, [], { shell : true });
-    }
+    outputChannel.clear();
+    spawn = cp.spawn(`${command}`, [], { shell : true });
+    
     outputChannel.show();
     spawn.stdout.on('data', (data) => {
         outputChannel.append(`${data}`);
@@ -378,6 +377,7 @@ function runCommandInMPremTerminal(command: string) {
         spawn.kill();
     });
     spawn.on('close', (code) => {
+        outputChannel.append(`[Exited ${code}]`);
         spawn.kill();
     });
 
@@ -464,8 +464,9 @@ async function copy_file_from(extension:string) {
     const files = await getFiles();
     files.forEach(file => {
         if (file.includes('.') && (!extension || file.endsWith(extension))) {
-            createFolders(path.join(getCurrentWorkspaceFolderPath(), 'mprem_files', file), false);
-            runCommandInMPremTerminal(`${mpremote} cp :${file.trim()} ./mprem_files/${file.trim()}`);
+            const tmp_path = path.join(getCurrentWorkspaceFolderPath(), 'mprem_files', file.trim());
+            createFolders(tmp_path, false);
+            runCommandInMPremTerminal(`${mpremote} cp :${file.trim()} ${tmp_path}`);
         }
     });
 }
