@@ -104,10 +104,17 @@ export function activate(context: vscode.ExtensionContext) {
         installStubs();
     });
     let test = vscode.commands.registerCommand('mprem.test', () => {
-        runCommandInMPremTerminal('\x03');
+        runCommandInMPremTerminal(`${python} "C:\\Users\\Jannis\\Documents\\PyESP\\printy.py"`);
     });
     let stop = vscode.commands.registerCommand('mprem.stop', () => {
-        spawn.kill();
+        if (spawn) {
+            // spawn.stdin.destroy();
+            // spawn.stdout.destroy();
+            // spawn.stderr.destroy();
+            // spawn.kill();
+            const kill = require('tree-kill');
+            kill(spawn.pid);
+        }
     });
     let flash = vscode.commands.registerCommand('mprem.flash', () => {
         flashFirmware();
@@ -323,8 +330,10 @@ async function flashFirmware() {
                 vscode.window.showQuickPick(binLinks).then((selectedBin) => {
                     if (selectedBin) {
                         downloadFile(selectedBin, binpath).then(() => {
-                            console.log(`${esptool} --port ${input_device} write_flash --flash_mode keep --flash_size keep --erase-all 0x1000 ${binpath}`);
-                            const child = cp.spawn(`${esptool} --port ${input_device} write_flash --flash_mode keep --flash_size keep --erase-all 0x1000 ${binpath}`, [], { shell: true });
+                            // console.log(`${esptool} --port ${input_device} write_flash --flash_mode keep --flash_size keep --erase-all 0x1000 ${binpath}`);
+                            const cmd = `${esptool} --port ${input_device} write_flash --flash_mode keep --flash_size keep --erase-all 0x1000 ${binpath}`;
+                            outputChannel.append(`[Running ${cmd}]`);
+                            const child = cp.spawn(cmd, [], { shell: true });
                             outputChannel.show();
                             child.stdout.on('data', (data) => {
                                 outputChannel.append(`${data}`);
@@ -366,19 +375,20 @@ function runCommandInMPremTerminal(command: string) {
         command = command.replace("mpremote", `mpremote connect ${input_device}`);
     }
     outputChannel.clear();
+    outputChannel.append(`[Running ${command}]\n`);
+    vscode.commands.executeCommand("setContext", "mprem.running", true);
     spawn = cp.spawn(`${command}`, [], { shell : true });
-    
     outputChannel.show();
     spawn.stdout.on('data', (data) => {
         outputChannel.append(`${data}`);
     });
     spawn.stderr.on('data', (data) => {
         outputChannel.append(`${data}`);
-        spawn.kill();
     });
     spawn.on('close', (code) => {
-        outputChannel.append(`[Exited ${code}]`);
-        spawn.kill();
+        outputChannel.appendLine(`\n[Exited ${code}]`);
+        // outputChannel.appendLine(`[Done] exited with code=1 in 1.093 seconds`);
+        vscode.commands.executeCommand("setContext", "mprem.running", false);
     });
 
 }
@@ -413,15 +423,30 @@ async function deleteConfirmation(supress = false) {
     }
 }
 
-function getActiveFilePath(only_name = false): string | undefined {
+function getActiveFilePath(only_name = false) {
     const activeEditor = vscode.window.activeTextEditor;
     if (activeEditor) {
-        const f_path = activeEditor.document.uri.fsPath;
-        if (only_name) {
-            return path.basename(f_path);
+        const document = activeEditor.document;
+        if (document.uri.scheme === 'file') {
+            const f_path = document.uri.fsPath;
+            if (only_name) {
+                return path.basename(f_path);
+            }
+            return f_path;
         }
-        return f_path;
     }
+    const visibleEditors = vscode.window.visibleTextEditors;
+    for (const editor of visibleEditors) {
+        if (editor.document.uri.scheme === 'file') {
+            const f_path = editor.document.uri.fsPath;
+            if (only_name) {
+                return path.basename(f_path);
+            }
+            return f_path;
+        }
+    }
+    
+    return undefined;
 }
 
 function getCurrentWorkspaceFolderPath(): string {

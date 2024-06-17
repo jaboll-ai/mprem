@@ -8,7 +8,7 @@
   "publisher": "jaboll",
   "icon": "resources/mprem_logo.png",
   "description": "Micropython micro controller - Flash firmware and File Handling",
-  "version": "0.3.2",
+  "version": "0.3.4",
   "engines": {
     "vscode": "^1.84.0"
   },
@@ -122,24 +122,26 @@
           "group": "navigation"
         }
       ],
-      "editor/title": [
+      "editor/title/run": [
         {
           "when": "config.mprem.showMicroRun && editorLangId == 'python' && mprem.connected",
           "command": "mprem.run",
           "group": "navigation"
-        },
+        }
+      ],
+      "editor/title": [
         {
-          "when": "config.mprem.showMicroStop && editorLangId == 'python' && mprem.connected",
+          "when": "config.mprem.showMicroStop && editorLangId == 'python' && mprem.connected && mprem.running",
           "command": "mprem.stop",
           "group": "navigation"
         }
       ]
     },
-  "configuration": {
-    "type": "object",
-    "title": "mprem config",
-    "properties": {
-      "mprem.showMicroRun": {
+    "configuration": {
+      "type": "object",
+      "title": "mprem config",
+      "properties": {
+        "mprem.showMicroRun": {
           "type": "boolean",
           "default": true,
           "description": "Whether to show 'Micro Code' icon in editor title menu.",
@@ -151,8 +153,8 @@
           "description": "Whether to show 'Stop micro code' icon in the editor title menu when code is running.",
           "scope": "resource"
         }
+      }
     }
-  }
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
@@ -176,7 +178,6 @@
   "dependencies": {
     "axios": "^1.7.2",
     "cheerio": "^1.0.0-rc.12",
-    "iconv-lite": "^0.6.3",
-    "jschardet": "^3.0.0"
+    "tree-kill": "^1.2.2"
   }
 }
