@@ -1,6 +1,8 @@
+### 0.3.4
+- now everything runs in output channels
+
 ### 0.3.3
 - updated README
-
 
 ### 0.3.2
 - fixed mac python paths
