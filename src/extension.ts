@@ -20,15 +20,15 @@ let walker = "";
 let spawn: cp.ChildProcessWithoutNullStreams;
 let customInterpreter = false;
 let outputChannel: vscode.OutputChannel;
-// This method is called when your extension is activated
-// Your extension is activated the very first time the command is executed
+
+
 export function activate(context: vscode.ExtensionContext) {
 
     outputChannel = vscode.window.createOutputChannel('mprem');
 
     const scriptpath = path.join(context.extensionPath, 'python', process.platform==="win32" ? 'Scripts' : 'bin');
     binpath = path.join(context.extensionPath, 'bin', 'firmware.bin');
-    walker = path.join(scriptpath, 'walker.py');
+    walker = path.join(context.extensionPath, 'backend', 'walker.py');
     if(!fs.existsSync(path.join(context.extensionPath, 'bin'))) {
         fs.mkdirSync(path.join(context.extensionPath, 'bin'));
     }
@@ -108,13 +108,12 @@ export function activate(context: vscode.ExtensionContext) {
     });
     let stop = vscode.commands.registerCommand('mprem.stop', () => {
         if (spawn) {
-            // spawn.stdin.destroy();
-            // spawn.stdout.destroy();
-            // spawn.stderr.destroy();
-            // spawn.kill();
             const kill = require('tree-kill');
             kill(spawn.pid);
         }
+    });
+    let input = vscode.commands.registerCommand('mprem.input', () => {
+        inputToMpremTerminal();
     });
     let flash = vscode.commands.registerCommand('mprem.flash', () => {
         flashFirmware();
@@ -172,6 +171,7 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(stop);
     context.subscriptions.push(set_environment);
     context.subscriptions.push(install_stubs);
+    context.subscriptions.push(input);
     let device_list = new MpremDevices(context, new MpremProvider());
 }
 
@@ -381,6 +381,9 @@ function runCommandInMPremTerminal(command: string) {
     outputChannel.show();
     spawn.stdout.on('data', (data) => {
         outputChannel.append(`${data}`);
+        if (data.trim().endsWith('>')) {
+            inputToMpremTerminal();
+        }
     });
     spawn.stderr.on('data', (data) => {
         outputChannel.append(`${data}`);
@@ -391,6 +394,16 @@ function runCommandInMPremTerminal(command: string) {
         vscode.commands.executeCommand("setContext", "mprem.running", false);
     });
 
+}
+
+function inputToMpremTerminal() {
+    if (spawn){
+        vscode.window.showInputBox({ prompt: "input" }).then((input) => {
+            if (input) {
+                spawn.stdin.write(input + '\n');
+            }
+        });
+    }
 }
 
 async function deleteConfirmation(supress = false) {
